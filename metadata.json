@@ -1,0 +1,8 @@
+{
+  "name": "Remix SHEQ Street QMS",
+  "description": "Pixel-perfect ISO 9001 Quality Management System (QMS) dashboard and compliance workspace matching SHEQ Street.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
