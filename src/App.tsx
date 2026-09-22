@@ -43,9 +43,28 @@ import { ConsultantDashboardView } from './components/ConsultantDashboardView';
 import { AuditorDashboardView } from './components/AuditorDashboardView';
 
 export function App() {
-  // Must type email and password to sign in - start logged out by default
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-  const [sessionMode, setSessionMode] = useState<'selection' | 'management' | 'consultant' | 'auditor'>('selection');
+  // Active user session state
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+    try {
+      const isLoggedOut = localStorage.getItem('sheq_logged_out');
+      if (isLoggedOut === 'true') return null;
+      const isSessionActive = sessionStorage.getItem('sheq_session_active');
+      const saved = localStorage.getItem('sheq_auth_user');
+      if (saved && isSessionActive === 'true') {
+        return JSON.parse(saved);
+      }
+    } catch {}
+    return null;
+  });
+  const [sessionMode, setSessionMode] = useState<'selection' | 'management' | 'consultant' | 'auditor'>(() => {
+    try {
+      const savedMode = sessionStorage.getItem('sheq_session_mode');
+      if (savedMode === 'management' || savedMode === 'consultant' || savedMode === 'auditor') {
+        return savedMode;
+      }
+    } catch {}
+    return 'selection';
+  });
   const [loginAlertNotice, setLoginAlertNotice] = useState<LoginAlertNotice | null>(null);
   const [showLoginToast, setShowLoginToast] = useState<boolean>(true);
 
@@ -491,15 +510,22 @@ export function App() {
             companies={companies}
             user={currentUser}
             onUpdateUser={(updated) => {
-              setCurrentUser((prev) => (prev ? { ...prev, ...updated } : null));
-              try {
-                if (currentUser) {
-                  localStorage.setItem(
-                    'sheq_auth_user',
-                    JSON.stringify({ ...currentUser, ...updated })
-                  );
-                }
-              } catch {}
+              setCurrentUser((prev) => {
+                const nextUser: AuthUser = prev
+                  ? { ...prev, ...updated }
+                  : {
+                      id: 'usr-1',
+                      name: updated.name || 'NAVEEN .V',
+                      email: updated.email || 'nv8660970099@gmail.com',
+                      phone: updated.phone || '+27 82 459 2810',
+                      role: updated.role || 'SHEQ Quality Lead / Admin',
+                      companyName: company?.name || 'NK Quality Systems',
+                    };
+                try {
+                  localStorage.setItem('sheq_auth_user', JSON.stringify(nextUser));
+                } catch {}
+                return nextUser;
+              });
             }}
             onUpdateCompany={(updated) => {
               setCompany((prev) => {

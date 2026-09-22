@@ -24,6 +24,7 @@ interface ProfileViewProps {
   company: Company;
   companies?: Company[];
   user?: AuthUser | null;
+  defaultSubTab?: 'user' | 'company';
   onUpdateUser?: (updated: Partial<AuthUser>) => void;
   onUpdateCompany?: (updated: Partial<Company>) => void;
   onAddCompany?: (newCompany: Company) => void;
@@ -35,21 +36,77 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   company,
   companies = [],
   user,
+  defaultSubTab,
   onUpdateUser,
   onUpdateCompany,
   onAddCompany,
   onCompanyChange,
   onLogout,
 }) => {
-  // Tab: 'user' | 'company'
-  const [activeSubTab, setActiveSubTab] = useState<'user' | 'company'>('company');
+  // Tab: 'user' | 'company' (defaults to 'user' so clicking My Profile immediately opens user profile)
+  const [activeSubTab, setActiveSubTab] = useState<'user' | 'company'>(defaultSubTab || 'user');
 
-  // User state
+  // User state - initialized from user prop or localStorage
   const [userSaved, setUserSaved] = useState(false);
-  const [name, setName] = useState(user?.name || 'NAVEEN .V');
-  const [email, setEmail] = useState(user?.email || 'nv8660970099@gmail.com');
-  const [phone, setPhone] = useState('+27 82 459 2810');
-  const [role, setRole] = useState('SHEQ Quality Lead / Admin');
+  const [savedDetails, setSavedDetails] = useState<{ name: string; email: string; phone: string } | null>(null);
+
+  const [name, setName] = useState(() => {
+    if (user?.name) return user.name;
+    try {
+      const saved = localStorage.getItem('sheq_auth_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.name) return parsed.name;
+      }
+    } catch {}
+    return 'NAVEEN .V';
+  });
+
+  const [email, setEmail] = useState(() => {
+    if (user?.email) return user.email;
+    try {
+      const saved = localStorage.getItem('sheq_auth_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.email) return parsed.email;
+      }
+    } catch {}
+    return 'nv8660970099@gmail.com';
+  });
+
+  const [phone, setPhone] = useState(() => {
+    if (user?.phone) return user.phone;
+    try {
+      const saved = localStorage.getItem('sheq_auth_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.phone) return parsed.phone;
+      }
+    } catch {}
+    return '+27 82 459 2810';
+  });
+
+  const [role, setRole] = useState(() => {
+    if (user?.role) return user.role;
+    try {
+      const saved = localStorage.getItem('sheq_auth_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role) return parsed.role;
+      }
+    } catch {}
+    return 'SHEQ Quality Lead / Admin';
+  });
+
+  // Sync state if user prop changes
+  React.useEffect(() => {
+    if (user) {
+      if (user.name !== undefined) setName(user.name);
+      if (user.email !== undefined) setEmail(user.email);
+      if (user.phone !== undefined) setPhone(user.phone);
+      if (user.role !== undefined) setRole(user.role);
+    }
+  }, [user]);
 
   // Company state
   const [companySaved, setCompanySaved] = useState(false);
@@ -77,9 +134,36 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   const handleSaveUser = (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateUser?.({ name, email });
+    const updatedData: Partial<AuthUser> = {
+      name: name.trim() || 'User',
+      email: email.trim(),
+      phone: phone.trim(),
+      role: role.trim(),
+    };
+
+    // 1. Notify parent handler
+    onUpdateUser?.(updatedData);
+
+    // 2. Persist directly to localStorage
+    try {
+      const existingStr = localStorage.getItem('sheq_auth_user');
+      const existing = existingStr ? JSON.parse(existingStr) : {};
+      localStorage.setItem(
+        'sheq_auth_user',
+        JSON.stringify({ ...existing, ...updatedData })
+      );
+    } catch (err) {
+      console.warn('LocalStorage save warning:', err);
+    }
+
+    // 3. Display rich confirmation
+    setSavedDetails({
+      name: updatedData.name || '',
+      email: updatedData.email || '',
+      phone: updatedData.phone || '',
+    });
     setUserSaved(true);
-    setTimeout(() => setUserSaved(false), 3000);
+    setTimeout(() => setUserSaved(false), 5000);
   };
 
   const handleSaveCompany = (e: React.FormEvent) => {
@@ -478,62 +562,94 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       {activeSubTab === 'user' && (
         <div className="space-y-6">
           {userSaved && (
-            <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold flex items-center gap-2 shadow-xs">
-              <Check className="w-4 h-4 text-emerald-600" />
-              <span>Profile settings saved successfully.</span>
+            <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl text-emerald-900 text-xs font-semibold flex items-start gap-3 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-600 mt-0.5">
+                <Check className="w-4 h-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-sm text-emerald-900 flex items-center gap-2">
+                  <span>Profile Saved Successfully!</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-200 text-emerald-800 rounded-full uppercase tracking-wider">
+                    Confirmed
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-700 mt-1 font-normal">
+                  Your updated personal profile credentials have been saved to the system:
+                </p>
+                <div className="mt-2.5 flex flex-wrap gap-2 text-xs">
+                  <span className="px-3 py-1 bg-white border border-emerald-200 rounded-lg text-emerald-900 font-medium shadow-xs">
+                    Name: <strong className="font-bold text-slate-900">{savedDetails?.name || name}</strong>
+                  </span>
+                  <span className="px-3 py-1 bg-white border border-emerald-200 rounded-lg text-emerald-900 font-medium shadow-xs">
+                    Email: <strong className="font-bold text-slate-900">{savedDetails?.email || email}</strong>
+                  </span>
+                  <span className="px-3 py-1 bg-white border border-emerald-200 rounded-lg text-emerald-900 font-medium shadow-xs">
+                    Phone: <strong className="font-bold text-slate-900">{savedDetails?.phone || phone}</strong>
+                  </span>
+                </div>
+              </div>
             </div>
           )}
 
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
             <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100">
-              <div className="w-16 h-16 rounded-full bg-slate-900 text-cyan-400 flex items-center justify-center font-bold text-2xl border-2 border-slate-200 shadow-xs">
-                N
+              <div className="w-16 h-16 rounded-full bg-slate-900 text-cyan-400 flex items-center justify-center font-bold text-2xl border-2 border-slate-200 shadow-xs uppercase">
+                {name.trim() ? name.trim().charAt(0) : 'U'}
               </div>
               <div>
-                <h2 className="text-lg font-bold text-slate-900">{name}</h2>
-                <p className="text-xs text-slate-500">{role} • {company.name}</p>
+                <h2 className="text-lg font-bold text-slate-900">{name || 'User'}</h2>
+                <p className="text-xs text-slate-500">{role || 'SHEQ Quality Lead'} • {company.name}</p>
                 <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                   ISO 9001 Lead Auditor
                 </span>
               </div>
             </div>
 
-            <form onSubmit={handleSaveUser} className="space-y-4">
+            <form onSubmit={handleSaveUser} noValidate className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Full Name <span className="text-slate-400 font-normal">(Any name allowed)</span>
+                  </label>
                   <div className="relative">
                     <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
+                      placeholder="Enter any name"
                       className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Email Address <span className="text-slate-400 font-normal">(Any email allowed)</span>
+                  </label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
-                      type="email"
+                      type="text"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter any email address"
                       className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Phone Number <span className="text-slate-400 font-normal">(Any number allowed)</span>
+                  </label>
                   <div className="relative">
                     <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
+                      placeholder="Enter any phone number"
                       className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -547,16 +663,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       type="text"
                       value={role}
                       onChange={(e) => setRole(e.target.value)}
+                      placeholder="e.g. SHEQ Quality Lead / Admin"
                       className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                <span className="text-xs text-slate-500">
+                  Saves immediately and updates your session, top header, and sidebar profile.
+                </span>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer shadow-xs transition-colors"
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer shadow-xs transition-colors hover:shadow-md"
                 >
                   <Save className="w-4 h-4" />
                   <span>Save Profile</span>
