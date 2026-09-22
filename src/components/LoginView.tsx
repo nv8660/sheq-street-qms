@@ -35,7 +35,7 @@ const SAVED_CREDENTIALS: CredentialAccount[] = [
   {
     name: 'NAVEEN .V',
     email: 'nv8660970099@gmail.com',
-    password: 'SQ-Naveen9001!',
+    password: 'Naveen@1402',
     role: 'SHEQ Quality Lead / ISO 9001 Lead Auditor',
     badge: 'Lead Auditor',
     initials: 'NV',
@@ -44,7 +44,7 @@ const SAVED_CREDENTIALS: CredentialAccount[] = [
   {
     name: 'NK Quality Administrator',
     email: 'admin@nkquality.co.za',
-    password: 'SQ-Admin9001!',
+    password: '1234567',
     role: 'SHEQ Administrator & Quality Lead',
     badge: 'Admin',
     initials: 'NK',
@@ -76,7 +76,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   // Sign in state - starts empty so user must enter email
   const [email, setEmail] = useState<string>(defaultEmail || '');
   const [password, setPassword] = useState<string>('');
-  const [showPassword, setShowPassword] = useState<boolean>(true);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
@@ -146,44 +146,41 @@ export const LoginView: React.FC<LoginViewProps> = ({
       c.name.toLowerCase().includes(email.toLowerCase())
   );
 
-  // Timer effect for countdown
+  // Auto-complete OAuth sign-in without countdown seconds delay
   useEffect(() => {
     if (!oauthProgress) return;
 
-    if (oauthProgress.countdown <= 0) {
+    const timer = setTimeout(() => {
       const { email: authEmail, name: authName, company: compName } = oauthProgress;
       setOauthProgress(null);
       setShowGoogleModal(false);
       setShowMicrosoftModal(false);
       handleCompleteSignIn(authEmail, authName, compName);
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setOauthProgress((prev) => (prev ? { ...prev, countdown: prev.countdown - 1 } : null));
-    }, 1000);
+    }, 400);
 
     return () => clearTimeout(timer);
   }, [oauthProgress]);
 
-  const generateSecurePassword = () => {
-    const uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-    const lowercase = 'abcdefghijkmnpqrstuvwxyz';
-    const numbers = '23456789';
-    const symbols = '!@#$%&*';
-    const all = uppercase + lowercase + numbers + symbols;
+  // Auto-proceed after showing dispatched email link for 5 seconds
+  useEffect(() => {
+    if (!signupLinkSent) return;
+    const timer = setTimeout(() => {
+      handleCompleteSignIn(signupEmail, signupName, signupCompany);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [signupLinkSent, signupEmail, signupName, signupCompany]);
 
-    let pwd = 'SQ-';
-    pwd += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
-    pwd += lowercase.charAt(Math.floor(Math.random() * lowercase.length));
-    pwd += numbers.charAt(Math.floor(Math.random() * numbers.length));
-    pwd += symbols.charAt(Math.floor(Math.random() * symbols.length));
-
-    for (let i = 0; i < 6; i++) {
-      pwd += all.charAt(Math.floor(Math.random() * all.length));
-    }
-    return pwd;
-  };
+  // Auto-dismiss forgot password confirmation after 5 seconds
+  useEffect(() => {
+    if (!forgotSuccess) return;
+    const timer = setTimeout(() => {
+      setShowForgotModal(false);
+      setForgotSuccess(false);
+      setPassword(newPassword);
+      handleCompleteSignIn(forgotEmail);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [forgotSuccess, forgotEmail, newPassword]);
 
   const handleStartOAuthSignIn = (
     provider: 'Google' | 'Microsoft',
@@ -191,10 +188,15 @@ export const LoginView: React.FC<LoginViewProps> = ({
     userName?: string,
     compName?: string
   ) => {
-    const generatedPass = generateSecurePassword();
+    const savedCred = SAVED_CREDENTIALS.find(
+      (c) => c.email.toLowerCase() === loginEmail.toLowerCase().trim()
+    );
+    const targetPassword = savedCred?.password || 'Naveen@1402';
+
     // Pre-fill the underlying login form inputs
     setEmail(loginEmail.trim());
-    setPassword(generatedPass);
+    setPassword(targetPassword);
+    setShowPassword(false);
 
     let finalName = userName || 'NAVEEN .V';
     if (!userName && loginEmail.includes('@')) {
@@ -214,16 +216,16 @@ export const LoginView: React.FC<LoginViewProps> = ({
       email: loginEmail.trim(),
       name: finalName,
       company: compName || 'nk',
-      autoPassword: generatedPass,
+      autoPassword: targetPassword,
       countdown: 3,
-      showPass: true,
+      showPass: false,
     });
   };
 
   const handleSuggestPassword = () => {
-    const suggested = 'SQ-Naveen9001!';
+    const suggested = 'Naveen@1402';
     setPassword(suggested);
-    setShowPassword(true);
+    setShowPassword(false);
     if (!email.trim()) {
       setEmail('nv8660970099@gmail.com');
     }
@@ -232,10 +234,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
   const handleSuggestAndLogin = () => {
     const userEmail = email.trim() || 'nv8660970099@gmail.com';
-    const userPass = 'SQ-Naveen9001!';
+    const userPass = 'Naveen@1402';
     setEmail(userEmail);
     setPassword(userPass);
-    setShowPassword(true);
+    setShowPassword(false);
     if (errorMessage) setErrorMessage('');
     setIsSubmitting(true);
     setTimeout(() => {
@@ -385,7 +387,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
           companyName: 'SHEQ Street QMS',
         }),
       });
-    } catch {}
+    } catch { }
 
     setForgotSuccess(true);
     setForgotStatus(`Password successfully changed! A confirmation link was sent to ${forgotEmail}.`);
@@ -511,8 +513,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         type="button"
                         onClick={() => {
                           setEmail('nv8660970099@gmail.com');
-                          setPassword('SQ-Naveen9001!');
-                          setShowPassword(true);
+                          setPassword('Naveen@1402');
+                          setShowPassword(false);
                           setShowEmailSuggestions(false);
                         }}
                         className="text-[10px] text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
@@ -557,7 +559,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                                 e.preventDefault();
                                 setEmail(cred.email);
                                 setPassword(cred.password);
-                                setShowPassword(true);
+                                setShowPassword(false);
                                 setShowEmailSuggestions(false);
                                 if (errorMessage) setErrorMessage('');
                               }}
@@ -579,11 +581,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
                                     </span>
                                   </div>
                                   <div className="text-xs text-slate-500 font-mono truncate">{cred.email}</div>
-                                  <div className="flex items-center gap-1 text-[10px] text-slate-500 font-mono mt-0.5">
-                                    <Lock className="w-2.5 h-2.5 text-slate-400" />
-                                    <span>
-                                      Password: <strong className="text-slate-700 font-bold">{cred.password}</strong>
-                                    </span>
+                                  <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-medium mt-0.5">
+                                    <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
+                                    <span>Verified Account Credentials</span>
                                   </div>
                                 </div>
                               </div>
@@ -595,7 +595,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                                     e.stopPropagation();
                                     setEmail(cred.email);
                                     setPassword(cred.password);
-                                    setShowPassword(true);
+                                    setShowPassword(false);
                                     setShowEmailSuggestions(false);
                                     if (errorMessage) setErrorMessage('');
                                     setIsSubmitting(true);
@@ -618,23 +618,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   </div>
                 </div>
 
-                {/* Password Field with Live Password Suggestions */}
-                <div ref={passwordContainerRef} className="relative">
+                {/* Password Field - visible while typing */}
+                <div>
                   <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-1.5">
-                      <label className="block text-xs font-semibold text-slate-700">
-                        Password
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handleSuggestPassword}
-                        className="text-[10px] font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-md flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                        title="Auto-fill strong suggested password"
-                      >
-                        <Sparkles className="w-3 h-3 text-amber-500" />
-                        <span>Suggest</span>
-                      </button>
-                    </div>
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Password
+                    </label>
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
@@ -651,16 +640,13 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       autoComplete="current-password"
                       type={showPassword ? 'text' : 'password'}
                       value={password}
-                      onFocus={() => setShowPasswordSuggestions(true)}
                       onChange={(e) => {
                         setPassword(e.target.value);
-                        setShowPasswordSuggestions(true);
+                        setShowPassword(true);
                         if (errorMessage) setErrorMessage('');
                       }}
                       placeholder="Enter your password"
-                      className={`w-full px-3.5 py-2.5 pr-10 border border-slate-300 rounded-lg text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all bg-white ${
-                        showPassword ? 'font-sans' : 'font-mono tracking-wider'
-                      }`}
+                      className="w-full px-3.5 py-2.5 pr-10 border border-slate-300 rounded-lg text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all bg-white font-sans"
                       required
                     />
                     <button
@@ -672,94 +658,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
-
-                    {/* Interactive Password Suggestions Dropdown while typing in Password */}
-                    {showPasswordSuggestions && (
-                      <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-amber-200 rounded-xl shadow-2xl z-30 overflow-hidden divide-y divide-slate-100 animate-in fade-in slide-in-from-top-1 duration-150">
-                        <div className="px-3 py-2 bg-gradient-to-r from-amber-50 to-orange-50/60 flex items-center justify-between border-b border-amber-100">
-                          <div className="flex items-center gap-1.5 text-amber-900 font-bold text-xs">
-                            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                            <span>Suggested Password Credentials</span>
-                          </div>
-                          <span className="text-[10px] text-amber-700 font-medium font-mono">ISO 9001 Compliant</span>
-                        </div>
-                        <div className="p-2.5 space-y-2">
-                          {/* Recommended Password */}
-                          <div
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              setPassword('SQ-Naveen9001!');
-                              setShowPassword(true);
-                              setShowPasswordSuggestions(false);
-                              if (!email.trim()) setEmail('nv8660970099@gmail.com');
-                              if (errorMessage) setErrorMessage('');
-                            }}
-                            className="p-2.5 rounded-lg border border-slate-200 hover:border-amber-400 hover:bg-amber-50/50 cursor-pointer transition-all flex items-center justify-between gap-2 group"
-                          >
-                            <div>
-                              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                Recommended Secure Password
-                              </div>
-                              <div className="font-mono font-bold text-slate-900 text-xs mt-0.5 group-hover:text-amber-800">
-                                SQ-Naveen9001!
-                              </div>
-                            </div>
-                            <span className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold shadow-2xs">
-                              Fill Password
-                            </span>
-                          </div>
-
-                          {/* Dynamic auto-generated password */}
-                          <div
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              const genPass = generateSecurePassword();
-                              setPassword(genPass);
-                              setShowPassword(true);
-                              setShowPasswordSuggestions(false);
-                              if (errorMessage) setErrorMessage('');
-                            }}
-                            className="p-2.5 rounded-lg border border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/50 cursor-pointer transition-all flex items-center justify-between gap-2 group"
-                          >
-                            <div className="flex items-center gap-1.5 text-xs text-blue-700 font-semibold">
-                              <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-                              <span>Generate New Random Encrypted Password</span>
-                            </div>
-                            <span className="text-[10px] text-blue-600 font-bold group-hover:underline">
-                              Generate & Fill
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Quick Suggested Password & One-Click Login Box */}
-                  <div className="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                      <div>
-                        <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Suggested Password</div>
-                        <div className="font-mono font-bold text-slate-900 text-xs">SQ-Naveen9001!</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={handleSuggestPassword}
-                        className="px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
-                      >
-                        Insert
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSuggestAndLogin}
-                        className="px-3 py-1 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors cursor-pointer shadow-xs flex items-center gap-1"
-                      >
-                        <span>Fill & Sign In</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-                    </div>
                   </div>
                 </div>
 
@@ -767,11 +665,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 <button
                   type="submit"
                   disabled={isSubmitting || !email.trim() || !password.trim()}
-                  className={`w-full py-2.5 px-4 rounded-lg font-semibold text-sm shadow-xs transition-all flex items-center justify-center gap-2 mt-5 ${
-                    email.trim() && password.trim() && !isSubmitting
+                  className={`w-full py-2.5 px-4 rounded-lg font-semibold text-sm shadow-xs transition-all flex items-center justify-center gap-2 mt-5 ${email.trim() && password.trim() && !isSubmitting
                       ? 'bg-[#2563eb] hover:bg-[#1d4ed8] active:bg-[#1e40af] text-white cursor-pointer shadow-md'
                       : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
-                  }`}
+                    }`}
                 >
                   {isSubmitting ? (
                     <div className="flex items-center gap-2">
@@ -1621,46 +1518,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
               </div>
             </div>
 
-            {/* Auto-Generated Password Box */}
-            <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-3.5 space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] font-semibold text-blue-900">
-                <span className="flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Auto-Generated Password:</span>
-                </span>
-                <span className="text-[10px] bg-blue-200/80 text-blue-800 px-1.5 py-0.5 rounded font-mono font-bold">
-                  Auto-Gen
-                </span>
-              </div>
-              <div className="flex items-center justify-between bg-white border border-blue-200 rounded-lg px-3 py-2">
-                <span className="font-mono text-sm font-bold text-slate-900 tracking-wider">
-                  {oauthProgress.showPass ? oauthProgress.autoPassword : '••••••••••••'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setOauthProgress((prev) =>
-                      prev ? { ...prev, showPass: !prev.showPass } : null
-                    )
-                  }
-                  className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-                  title="Toggle password visibility"
-                >
-                  {oauthProgress.showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-              <p className="text-[10px] text-blue-700/80">
-                A secure session password has been auto-generated for your authentication.
-              </p>
-            </div>
 
-            {/* Big Animated Countdown ("count should come") */}
-            <div className="text-center py-2 space-y-2">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-extrabold text-2xl shadow-lg ring-4 ring-blue-100 animate-pulse mx-auto">
-                {oauthProgress.countdown}
-              </div>
-              <div className="text-xs font-bold text-slate-800">
-                Signing in automatically in {oauthProgress.countdown} second{oauthProgress.countdown !== 1 ? 's' : ''}...
+            {/* Signing in progress - No seconds */}
+            <div className="text-center py-4 space-y-3">
+              <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <div className="text-sm font-bold text-slate-800">
+                Signing in automatically...
               </div>
               <p className="text-[11px] text-slate-500">
                 Connecting to SHEQ Street ISO 9001 Management Gateway

@@ -93,6 +93,51 @@ export interface AuditProcessRow {
   totalScore: number | string;
 }
 
+export interface AuditFindingItem {
+  id: string;
+  findingType: 'Minor Non-Conformance' | 'Major Non-Conformance' | 'Observation / OFI' | 'Good Practice';
+  clause: string;
+  description: string;
+  responsible?: string;
+  targetDate?: string;
+}
+
+export interface TurtleAnalysis {
+  resources: string; // With what resources / Machines or Equipment?
+  personnel: string; // With Whom / People, Sections or Departments?
+  inputs: string; // Inputs
+  outputs: string; // Outputs
+  measures: string; // How many / measures or indicators?
+  procedures: string; // How / Techniques, Methods or Procedures?
+}
+
+export interface AuditReportItem {
+  id: string;
+  reportNo: string;
+  title: string;
+  processName: string;
+  auditType: 'Internal Audit' | 'Supplier Audit' | 'External Certification' | 'Surveillance Audit';
+  leadAuditor: string;
+  auditorInitials: string;
+  auditDate: string;
+  scopeClause: string;
+  majorNcrs: number;
+  minorNcrs: number;
+  ofis: number;
+  score: number;
+  status: 'Completed' | 'Pending Review' | 'Draft' | 'Follow-up Required';
+  conclusion: string;
+  summary?: string;
+  strengths?: string;
+  nonConformances?: string;
+  recommendations?: string;
+  auditee?: string;
+  standards?: string;
+  overallImpressions?: string;
+  turtleAnalysis?: TurtleAnalysis;
+  findings?: AuditFindingItem[];
+}
+
 export interface CalibrationInstrument {
   id: string;
   instrumentId: string;
@@ -116,9 +161,16 @@ export interface HRData {
 export interface ReviewMeeting {
   id: string;
   title: string;
-  status: 'PLANNED' | 'COMPLETED';
+  status: 'PLANNED' | 'COMPLETED' | string;
   dateStr: string;
   organizer: string;
+  chairedBy?: string;
+  apologies?: string;
+  membersInAttendance?: string;
+  time?: string;
+  venue?: string;
+  objective?: string;
+  agenda?: string;
 }
 
 export interface PolicyItem {
@@ -205,6 +257,17 @@ export interface ProcessControlItem {
   hasQCP: boolean;
   flowchartSteps?: ProcessFlowStep[];
   qcpCheckpoints?: QCPCheckpoint[];
+  documentNumber?: string;
+  isoClause?: string;
+  processOwner?: string;
+  preparedBy?: string;
+  coreTeam?: string;
+  customer?: string;
+  revisionNumber?: string;
+  effectiveDate?: string;
+  revisionDate?: string;
+  customerApprovalDate?: string;
+  description?: string;
 }
 
 export interface OpportunityItem {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   GraduationCap,
   AlertTriangle,
@@ -38,6 +38,15 @@ export const SessionModeSelectionView: React.FC<SessionModeSelectionViewProps> =
   loginNotice,
   onDismissNotice,
 }) => {
+  // Auto-dismiss the login alert toast after 5 seconds
+  useEffect(() => {
+    if (!loginNotice) return;
+    const timer = setTimeout(() => {
+      onDismissNotice?.();
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [loginNotice, onDismissNotice]);
+
   return (
     <div className="min-h-screen bg-[#070e1c] text-white flex flex-col justify-center items-center px-4 py-12 antialiased font-sans select-none">
       <div className="max-w-5xl w-full space-y-7 animate-in fade-in zoom-in-95 duration-200">

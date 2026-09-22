@@ -13,6 +13,8 @@ import {
   Sliders,
   CheckCircle2,
   ExternalLink,
+  Calendar,
+  ChevronDown,
 } from 'lucide-react';
 import { ProcessControlItem, Company, ProcessFlowStep, QCPCheckpoint } from '../../types';
 
@@ -33,11 +35,25 @@ export const ProcessControlView: React.FC<ProcessControlViewProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProcess, setSelectedProcess] = useState<ProcessControlItem | null>(null);
-  const [name, setName] = useState('');
-  const [code, setCode] = useState('');
-  const [status, setStatus] = useState<'Draft' | 'Approved' | 'In Review'>('Draft');
-  const [hasFlowchart, setHasFlowchart] = useState(true);
-  const [hasQCP, setHasQCP] = useState(false);
+
+  // New Process Form Data - Matching Pinned Image
+  const [formData, setFormData] = useState({
+    name: '',
+    documentNumber: '',
+    isoClause: '8.5',
+    processOwner: '',
+    preparedBy: '',
+    coreTeam: '',
+    customer: '',
+    revisionNumber: '0',
+    effectiveDate: '',
+    revisionDate: '',
+    customerApprovalDate: '',
+    status: 'Draft' as 'Draft' | 'Approved' | 'In Review',
+    description: '',
+    hasFlowchart: true,
+    hasQCP: false,
+  });
 
   // New flowchart step form
   const [newStepTitle, setNewStepTitle] = useState('');
@@ -52,50 +68,84 @@ export const ProcessControlView: React.FC<ProcessControlViewProps> = ({
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!formData.name.trim()) return;
+
+    const docNum = formData.documentNumber.trim() || `QCP-00${processes.length + 1}`;
+
     const newProc: ProcessControlItem = {
       id: `proc-${Date.now()}`,
-      name: name.trim().toLowerCase(),
-      code: code.trim() || '112',
-      status: status,
-      hasFlowchart: hasFlowchart,
-      hasQCP: hasQCP,
-      flowchartSteps: hasFlowchart
-        ? [
-            {
-              id: 'st-1',
-              stepNumber: 1,
-              title: 'Receiving Inspection',
-              responsibleRole: 'QC Inspector',
-              inputs: 'Inbound consignment batch',
-              outputs: 'Inspection report',
-            },
-            {
-              id: 'st-2',
-              stepNumber: 2,
-              title: 'Processing Cycle',
-              responsibleRole: 'Operator',
-              inputs: 'Approved batch',
-              outputs: 'Finished lot',
-            },
-          ]
-        : [],
-      qcpCheckpoints: hasQCP
-        ? [
-            {
-              id: 'qcp-1',
-              parameter: 'Dimensional Tolerance',
-              specification: '± 0.2 mm',
-              frequency: 'Hourly',
-              acceptanceCriteria: 'Calibrated Vernier Pass',
-            },
-          ]
-        : [],
+      name: formData.name.trim(),
+      code: docNum,
+      documentNumber: docNum,
+      isoClause: formData.isoClause.trim() || '8.5',
+      processOwner: formData.processOwner.trim(),
+      preparedBy: formData.preparedBy.trim(),
+      coreTeam: formData.coreTeam.trim(),
+      customer: formData.customer.trim(),
+      revisionNumber: formData.revisionNumber.trim() || '0',
+      effectiveDate: formData.effectiveDate.trim(),
+      revisionDate: formData.revisionDate.trim(),
+      customerApprovalDate: formData.customerApprovalDate.trim(),
+      status: formData.status,
+      description: formData.description.trim(),
+      hasFlowchart: formData.hasFlowchart,
+      hasQCP: formData.hasQCP,
+      flowchartSteps: [
+        {
+          id: 'st-1',
+          stepNumber: 1,
+          title: 'Material / Order Receipt & Verification',
+          responsibleRole: formData.processOwner.trim() || 'Process Operator',
+          inputs: 'Inbound consignment or work order',
+          outputs: 'Verified preparation batch',
+        },
+        {
+          id: 'st-2',
+          stepNumber: 2,
+          title: `${formData.name.trim()} Core Operation`,
+          responsibleRole: formData.preparedBy.trim() || 'Lead Technician',
+          inputs: 'Verified preparation batch',
+          outputs: 'Finished production lot',
+        },
+        {
+          id: 'st-3',
+          stepNumber: 3,
+          title: 'Final Quality Release & Inspection',
+          responsibleRole: 'QC Inspector',
+          inputs: 'Finished production lot',
+          outputs: 'Certificate of Analysis (CoA) & Released Product',
+        },
+      ],
+      qcpCheckpoints: [
+        {
+          id: 'qcp-1',
+          parameter: 'Operational Tolerances & Specifications',
+          specification: `Conforming to ISO 9001 Clause ${formData.isoClause || '8.5'}`,
+          frequency: 'Per Production Lot / Shift',
+          acceptanceCriteria: 'Conforming Quality Inspection Pass',
+        },
+      ],
     };
+
     onAddProcess(newProc);
-    setName('');
-    setCode('');
-    setStatus('Draft');
+
+    setFormData({
+      name: '',
+      documentNumber: '',
+      isoClause: '8.5',
+      processOwner: '',
+      preparedBy: '',
+      coreTeam: '',
+      customer: '',
+      revisionNumber: '0',
+      effectiveDate: '',
+      revisionDate: '',
+      customerApprovalDate: '',
+      status: 'Draft',
+      description: '',
+      hasFlowchart: true,
+      hasQCP: false,
+    });
     setIsModalOpen(false);
   };
 
@@ -214,8 +264,32 @@ export const ProcessControlView: React.FC<ProcessControlViewProps> = ({
                 </div>
               </div>
 
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                  {proc.documentNumber || proc.code}
+                </span>
+                {proc.isoClause && (
+                  <span className="text-[11px] font-medium text-slate-500">
+                    Clause {proc.isoClause}
+                  </span>
+                )}
+                {proc.revisionNumber && (
+                  <span className="text-[11px] font-mono font-semibold text-slate-500">
+                    Rev {proc.revisionNumber}
+                  </span>
+                )}
+              </div>
               <h3 className="font-bold text-lg text-slate-900 leading-snug">{proc.name}</h3>
-              <p className="text-xs text-slate-400 font-mono mt-1">{proc.code}</p>
+              {proc.processOwner && (
+                <p className="text-xs text-slate-500 mt-1">
+                  Owner: <span className="font-medium text-slate-700">{proc.processOwner}</span>
+                </p>
+              )}
+              {proc.description && (
+                <p className="text-xs text-slate-500 line-clamp-2 mt-2 leading-relaxed">
+                  {proc.description}
+                </p>
+              )}
             </div>
 
             <div className="flex items-center gap-2 mt-6 pt-4 border-t border-slate-100">
@@ -240,94 +314,241 @@ export const ProcessControlView: React.FC<ProcessControlViewProps> = ({
         ))}
       </div>
 
-      {/* New Process Modal */}
+      {/* New Process Modal (Matching Pinned Image) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-lg text-slate-900">Add New Process</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">New Process</h2>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors p-1 -mr-1 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleAdd} className="space-y-4 text-xs">
+
+            <form onSubmit={handleAdd} className="space-y-4">
+              {/* Process Name * */}
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Process Name
+                <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                  Process Name <span className="text-blue-600">*</span>
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. recycle, extrusion, packaging"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. In-house Recycling"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-white border border-blue-600 ring-2 ring-blue-500/20 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 shadow-2xs transition-all"
                 />
               </div>
 
+              {/* Row 1: Document Number & ISO 9001 Ref. Clause */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    Document Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. QCP-001"
+                    value={formData.documentNumber}
+                    onChange={(e) => setFormData({ ...formData, documentNumber: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 shadow-2xs transition-all font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    ISO 9001 Ref. Clause
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="8.5"
+                    value={formData.isoClause}
+                    onChange={(e) => setFormData({ ...formData, isoClause: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 shadow-2xs transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Process Owner & Prepared By */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    Process Owner
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Job title or name"
+                    value={formData.processOwner}
+                    onChange={(e) => setFormData({ ...formData, processOwner: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 shadow-2xs transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    Prepared By
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Name & title"
+                    value={formData.preparedBy}
+                    onChange={(e) => setFormData({ ...formData, preparedBy: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 shadow-2xs transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Row 3: Core Team */}
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Process Code
+                <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                  Core Team
                 </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 111, PR-01"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono outline-none focus:ring-2 focus:ring-blue-500"
+                <textarea
+                  rows={2}
+                  placeholder="List team members (one per line)"
+                  value={formData.coreTeam}
+                  onChange={(e) => setFormData({ ...formData, coreTeam: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 shadow-2xs transition-all resize-y"
                 />
               </div>
 
+              {/* Row 4: Customer & Revision Number */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    Customer
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Customer name"
+                    value={formData.customer}
+                    onChange={(e) => setFormData({ ...formData, customer: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 shadow-2xs transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    Revision Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="0"
+                    value={formData.revisionNumber}
+                    onChange={(e) => setFormData({ ...formData, revisionNumber: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 shadow-2xs transition-all font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Row 5: Effective Date & Revision Date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    Effective Date
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="dd-mm-yyyy"
+                      value={formData.effectiveDate}
+                      onChange={(e) => setFormData({ ...formData, effectiveDate: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 shadow-2xs transition-all pr-10"
+                    />
+                    <Calendar className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    Revision Date
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="dd-mm-yyyy"
+                      value={formData.revisionDate}
+                      onChange={(e) => setFormData({ ...formData, revisionDate: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 shadow-2xs transition-all pr-10"
+                    />
+                    <Calendar className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 6: Customer Approval Date & Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    Customer Approval Date
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="dd-mm-yyyy"
+                      value={formData.customerApprovalDate}
+                      onChange={(e) =>
+                        setFormData({ ...formData, customerApprovalDate: e.target.value })
+                      }
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 shadow-2xs transition-all pr-10"
+                    />
+                    <Calendar className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    Status
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 shadow-2xs transition-all appearance-none pr-10 cursor-pointer"
+                    >
+                      <option value="Draft">Draft</option>
+                      <option value="In Review">In Review</option>
+                      <option value="Approved">Approved</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 7: Process Description */}
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Lifecycle Status
+                <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                  Process Description
                 </label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="Draft">Draft</option>
-                  <option value="Approved">Approved</option>
-                  <option value="In Review">In Review</option>
-                </select>
+                <textarea
+                  rows={3}
+                  placeholder="Describe the process objectives, key operating procedures, and controls..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 shadow-2xs transition-all resize-y"
+                />
               </div>
 
-              <div className="space-y-2 pt-1">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={hasFlowchart}
-                    onChange={(e) => setHasFlowchart(e.target.checked)}
-                    className="rounded text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-slate-700 font-medium">Generate Process Map & Flowchart</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={hasQCP}
-                    onChange={(e) => setHasQCP(e.target.checked)}
-                    className="rounded text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-slate-700 font-medium">Generate Quality Control Plan (QCP)</span>
-                </label>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              {/* Modal Footer Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
+                  className="px-5 py-2 bg-[#2563eb] hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-xs transition-colors cursor-pointer"
                 >
-                  Create Process
+                  Save Process
                 </button>
               </div>
             </form>
@@ -345,8 +566,18 @@ export const ProcessControlView: React.FC<ProcessControlViewProps> = ({
                   <Workflow className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 capitalize">{selectedProcess.name}</h3>
-                  <p className="text-xs text-slate-500 font-mono">Process ID: {selectedProcess.code}</p>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                      {selectedProcess.documentNumber || selectedProcess.code}
+                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded bg-slate-100 font-medium text-slate-700">
+                      ISO {selectedProcess.isoClause || '8.5'}
+                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded bg-slate-100 font-mono font-medium text-slate-700">
+                      Rev {selectedProcess.revisionNumber || '0'}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">{selectedProcess.name}</h3>
                 </div>
               </div>
               <button
@@ -356,6 +587,33 @@ export const ProcessControlView: React.FC<ProcessControlViewProps> = ({
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Process Metadata Overview Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+              <div>
+                <span className="text-slate-500 font-medium block">Process Owner</span>
+                <span className="font-semibold text-slate-800">{selectedProcess.processOwner || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 font-medium block">Prepared By</span>
+                <span className="font-semibold text-slate-800">{selectedProcess.preparedBy || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 font-medium block">Customer</span>
+                <span className="font-semibold text-slate-800">{selectedProcess.customer || 'Standard'}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 font-medium block">Effective Date</span>
+                <span className="font-semibold text-slate-800">{selectedProcess.effectiveDate || 'Pending'}</span>
+              </div>
+            </div>
+
+            {selectedProcess.description && (
+              <div className="p-3 bg-blue-50/40 border border-blue-100 rounded-xl text-xs text-slate-700 leading-relaxed">
+                <span className="font-semibold text-blue-900 block mb-0.5">Process Description:</span>
+                {selectedProcess.description}
+              </div>
+            )}
 
             {/* Section 1: Process Flowchart Steps */}
             <div>

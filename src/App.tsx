@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
 import { NCRManagementView } from './components/modules/NCRManagementView';
@@ -48,6 +48,16 @@ export function App() {
   const [sessionMode, setSessionMode] = useState<'selection' | 'management' | 'consultant' | 'auditor'>('selection');
   const [loginAlertNotice, setLoginAlertNotice] = useState<LoginAlertNotice | null>(null);
   const [showLoginToast, setShowLoginToast] = useState<boolean>(true);
+
+  // Auto-dismiss the login alert notice ("Sign-In Alert Sent - Confirmation message dispatched to email") after 5 seconds
+  useEffect(() => {
+    if (!loginAlertNotice) return;
+    const timer = setTimeout(() => {
+      setLoginAlertNotice(null);
+      setShowLoginToast(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [loginAlertNotice]);
 
   const handleLogin = (user: AuthUser) => {
     if (!user?.email || !user.email.trim() || !user.email.includes('@')) {
