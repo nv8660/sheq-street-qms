@@ -402,40 +402,51 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12 animate-in fade-in duration-200 text-slate-800">
-      {/* Top Header & Sub-Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-900">{company.name}</span>
-          <span className="px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-700 text-[10px] font-bold tracking-wider">
-            {company.plan || 'TRIAL'}
-          </span>
+      {/* Settings Top Header matching Pinned Image */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+              Settings
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Manage your company profile and team access
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 self-start">
+            <span className="text-xs font-bold text-slate-600">{company.name}</span>
+            <span className="px-2 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-700 text-[10px] font-bold tracking-wider uppercase">
+              {company.plan || 'TRIAL'}
+            </span>
+          </div>
         </div>
 
-        {/* Sub-Tabs Toggle: Company Profile First, then Team Management */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        {/* Tab Switcher Pill Container matching Pinned Image */}
+        <div className="inline-flex items-center bg-[#f1f4f8] p-1 rounded-xl border border-slate-200/60 shadow-2xs">
           <button
             type="button"
             onClick={() => setSettingsTab('profile')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+            className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
               settingsTab === 'profile'
-                ? 'bg-white text-slate-900 border-slate-300 shadow-xs'
-                : 'text-slate-500 hover:text-slate-800 border-transparent hover:bg-slate-100'
+                ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/40 border border-transparent'
             }`}
           >
-            <Building className="w-3.5 h-3.5 text-blue-600" />
+            <Building className="w-4 h-4 text-slate-800" />
             <span>Company Profile</span>
           </button>
 
           <button
             type="button"
             onClick={() => setSettingsTab('team')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+            className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
               settingsTab === 'team'
-                ? 'bg-white text-slate-900 border-slate-300 shadow-xs'
-                : 'text-slate-500 hover:text-slate-800 border-transparent hover:bg-slate-100'
+                ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/40 border border-transparent'
             }`}
           >
-            <Users className="w-3.5 h-3.5 text-slate-600" />
+            <Users className="w-4 h-4 text-slate-600" />
             <span>Team Management</span>
           </button>
         </div>
