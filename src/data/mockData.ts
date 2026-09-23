@@ -209,6 +209,12 @@ export const initialReviews: ReviewMeeting[] = [
     status: 'PLANNED',
     dateStr: '17-Sept-2026',
     organizer: 'rmz',
+    venue: 'rmz',
+    apologies: 'None',
+    objective:
+      "The organisation's management review of the quality management system to ensure suitability, adequacy and effectiveness. The review is to include the assessment of opportunities for improvement and any potential changes to the quality management system, including quality policy, objectives & targets, and their alignment with business objectives and overall strategy.",
+    agenda:
+      "1) Quality management system documents status.\n2) Quality policy & objectives\n3) External and internal issues\n4) Risks and opportunities\n5) Audit results:\n   a) Internal audits\n   b) External audits\n6) Customer satisfaction & feedback\n7) Supplier performance\n8) Non-conformance & corrective actions (CAPA)\n9) Changes that could affect the QMS\n10) Resource adequacy & improvements",
   },
 ];
 

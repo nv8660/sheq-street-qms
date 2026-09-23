@@ -41,7 +41,7 @@ export interface DocumentItem {
   title: string;
   category: 'Quality Manual' | 'Work Instruction' | 'Form' | 'Policy' | 'Register' | 'SOP';
   revision: string;
-  status: 'Approved' | 'In Review' | 'Draft';
+  status: 'Approved' | 'In Review' | 'Draft' | 'Under Review' | 'Obsolete' | string;
   owner: string;
   approvedDate: string;
   nextReview: string;
@@ -61,7 +61,7 @@ export interface ProcedureItem {
   title: string;
   clause: string;
   revision: string;
-  status: 'Approved' | 'In Review' | 'Draft';
+  status: 'Approved' | 'In Review' | 'Draft' | 'Under Review' | 'Obsolete' | string;
   owner: string;
   approvedDate: string;
   nextReview: string;
@@ -370,7 +370,7 @@ const initialDocumentsList: DocumentItem[] = [
     title: 'Parties & Issues List',
     category: 'Register',
     revision: '1',
-    status: 'Approved',
+    status: 'Under Review',
     owner: 'SHEQ Lead',
     approvedDate: '16-Sept-2026',
     nextReview: '16-Sept-2027',
@@ -382,11 +382,23 @@ const initialDocumentsList: DocumentItem[] = [
     title: 'Risk Management Register',
     category: 'Register',
     revision: '1',
-    status: 'Approved',
+    status: 'Draft',
     owner: 'Risk Committee',
     approvedDate: '16-Sept-2026',
     nextReview: '16-Sept-2027',
     clause: 'Clause 6.1',
+  },
+  {
+    id: '25',
+    docNumber: 'NK-POL-000',
+    title: 'Superseded Legacy Quality Policy (2020)',
+    category: 'Policy',
+    revision: 'Rev 1.0 (Archived)',
+    status: 'Obsolete',
+    owner: 'Quality Lead',
+    approvedDate: '10-Jan-2020',
+    nextReview: 'Archived',
+    clause: 'Clause 5.2',
   },
 ];
 
@@ -467,6 +479,9 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
 
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<string>('All Statuses');
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const STATUS_OPTIONS = ['All Statuses', 'Draft', 'Approved', 'Under Review', 'Obsolete'];
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProcModalOpen, setIsProcModalOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<DocumentItem | null>(null);
@@ -558,12 +573,18 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
     return matchesSearch && matchesCategory;
   });
 
-  const filteredProcedures = procedures.filter(
-    (proc) =>
+  const filteredProcedures = procedures.filter((proc) => {
+    const matchesSearch =
       proc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       proc.docNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      proc.owner.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      proc.owner.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      statusFilter === 'All Statuses' ||
+      (statusFilter === 'Under Review'
+        ? proc.status === 'Under Review' || proc.status === 'In Review'
+        : proc.status === statusFilter);
+    return matchesSearch && matchesStatus;
+  });
 
   // Option 1: Upload File As-Is Handler
   const handleChooseFileAsIs = () => {
@@ -820,12 +841,15 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
     showNotice(`📥 Exporting Master Document Register (${documents.length} controlled documents) as CSV...`);
   };
 
-  // Close download dropdown menu on click outside
+  // Close download and status dropdown menus on click outside
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target.closest('.dropdown-action-container')) {
         setActiveDropdownDocId(null);
+      }
+      if (!target.closest('.status-dropdown-container')) {
+        setIsStatusDropdownOpen(false);
       }
     };
     window.addEventListener('click', handleOutsideClick);
@@ -986,15 +1010,54 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
               </button>
             </div>
 
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search procedures..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:w-64 pl-9 pr-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-500 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-2xs"
-              />
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search procedures..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full sm:w-60 pl-9 pr-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-500 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-2xs"
+                />
+              </div>
+
+              {/* All Statuses Custom Dropdown matching pinned image */}
+              <div className="relative status-dropdown-container">
+                <button
+                  type="button"
+                  onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                  className="inline-flex items-center justify-between gap-2.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg text-sm font-medium text-slate-800 shadow-2xs cursor-pointer transition-colors min-w-[130px]"
+                >
+                  <span>{statusFilter}</span>
+                  <ChevronDown className="w-4 h-4 text-slate-700" />
+                </button>
+
+                {isStatusDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 w-44 bg-white border border-slate-300 rounded-md shadow-lg z-40 py-1 text-sm overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                    {STATUS_OPTIONS.map((st) => {
+                      const isSelected = statusFilter === st;
+                      return (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => {
+                            setStatusFilter(st);
+                            setIsStatusDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 font-medium transition-colors cursor-pointer block ${
+                            isSelected
+                              ? 'bg-[#6e7278] text-white'
+                              : 'text-slate-900 hover:bg-[#6e7278] hover:text-white'
+                          }`}
+                        >
+                          {st}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1035,7 +1098,17 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
                         </td>
                         <td className="py-3 px-4 text-xs text-slate-600">{proc.owner}</td>
                         <td className="py-3 px-4 text-center">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
+                              proc.status === 'Approved'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+                                : proc.status === 'Under Review' || proc.status === 'In Review'
+                                ? 'bg-amber-50 text-amber-700 border border-amber-300'
+                                : proc.status === 'Draft'
+                                ? 'bg-blue-50 text-blue-700 border border-blue-300'
+                                : 'bg-slate-100 text-slate-700 border border-slate-300'
+                            }`}
+                          >
                             {proc.status}
                           </span>
                         </td>
@@ -1299,12 +1372,16 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
                             className={`inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider ${
                               doc.status === 'Approved'
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : doc.status === 'In Review'
+                                : doc.status === 'Under Review' || doc.status === 'In Review'
                                 ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                : doc.status === 'Draft'
+                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                : doc.status === 'Obsolete'
+                                ? 'bg-slate-100 text-slate-500 border border-slate-300 line-through'
                                 : 'bg-slate-100 text-slate-700 border border-slate-300'
                             }`}
                           >
-                            {doc.status === 'Approved' ? 'ACTIVE' : doc.status.toUpperCase()}
+                            {doc.status}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-xs text-slate-600">{doc.owner}</td>
@@ -1627,8 +1704,9 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
                       className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 appearance-none pr-10 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-2xs cursor-pointer"
                     >
                       <option value="Draft">Draft</option>
-                      <option value="In Review">In Review</option>
                       <option value="Approved">Approved</option>
+                      <option value="Under Review">Under Review</option>
+                      <option value="Obsolete">Obsolete</option>
                     </select>
                     <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
@@ -1745,8 +1823,12 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
                     className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
                       previewDoc.status === 'Approved'
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : previewDoc.status === 'In Review'
+                        : previewDoc.status === 'Under Review' || previewDoc.status === 'In Review'
                         ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                        : previewDoc.status === 'Draft'
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                        : previewDoc.status === 'Obsolete'
+                        ? 'bg-slate-100 text-slate-500 border border-slate-300 line-through'
                         : 'bg-slate-100 text-slate-700 border border-slate-300'
                     }`}
                   >

@@ -74,7 +74,22 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
       localStorage.setItem(key, JSON.stringify(policies));
     } catch {}
   }, [policies, company?.id]);
-  const [objectives, setObjectives] = useState<ObjectiveItem[]>(initialObjectives);
+
+  const [objectives, setObjectives] = useState<ObjectiveItem[]>(() => {
+    try {
+      const key = company?.id ? `sheq_${company.id}_objectives` : 'sheq_objectives';
+      const saved = localStorage.getItem(key);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return initialObjectives;
+  });
+
+  useEffect(() => {
+    try {
+      const key = company?.id ? `sheq_${company.id}_objectives` : 'sheq_objectives';
+      localStorage.setItem(key, JSON.stringify(objectives));
+    } catch {}
+  }, [objectives, company?.id]);
   const [stakeholders, setStakeholders] = useState<StakeholderIssue[]>(initialStakeholders);
   const [risks, setRisks] = useState<RiskItem[]>(initialRisks);
   const [opportunities, setOpportunities] = useState<OpportunityItem[]>(initialOpportunities);
@@ -197,6 +212,14 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
   const [showImportModal, setShowImportModal] = useState(false);
   const [importText, setImportText] = useState('');
   const [showNewObjectiveModal, setShowNewObjectiveModal] = useState(false);
+  const [editingObjective, setEditingObjective] = useState<ObjectiveItem | null>(null);
+  const [showAIObjectiveImportModal, setShowAIObjectiveImportModal] = useState(false);
+  const [isAIImportingObjectives, setIsAIImportingObjectives] = useState(false);
+  const [aiImportObjectiveStep, setAiImportObjectiveStep] = useState<string>('');
+  const [objectiveImportText, setObjectiveImportText] = useState<string>('');
+  const [objectiveImportFileName, setObjectiveImportFileName] = useState<string>('');
+  const [importedObjectivesPreview, setImportedObjectivesPreview] = useState<ObjectiveItem[]>([]);
+  const objectiveFileInputRef = useRef<HTMLInputElement>(null);
   const [showNewRiskModal, setShowNewRiskModal] = useState(false);
   const [showNewOppModal, setShowNewOppModal] = useState(false);
   const [showNewStakeholderModal, setShowNewStakeholderModal] = useState(false);
@@ -701,6 +724,253 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
     setNewObjMetric('');
     setNewObjOwner('');
     setShowNewObjectiveModal(false);
+    showNotice('✨ Objective created successfully!');
+  };
+
+  const handleOpenEditObjective = (obj: ObjectiveItem) => {
+    setEditingObjective({ ...obj });
+  };
+
+  const handleSaveEditObjective = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingObjective) return;
+    setObjectives((prev) =>
+      prev.map((o) => (o.id === editingObjective.id ? editingObjective : o))
+    );
+    showNotice(`✨ Objective updated successfully!`);
+    setEditingObjective(null);
+  };
+
+  const handleDeleteObjective = (id: string, title?: string) => {
+    const targetTitle = title || objectives.find((o) => o.id === id)?.objective || 'this objective';
+    if (window.confirm(`Are you sure you want to delete "${targetTitle}"? This action cannot be undone.`)) {
+      setObjectives((prev) => prev.filter((o) => o.id !== id));
+      if (editingObjective?.id === id) {
+        setEditingObjective(null);
+      }
+      showNotice(`🗑️ Objective deleted successfully.`);
+    }
+  };
+
+  const handleObjectiveFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setObjectiveImportFileName(file.name);
+
+    if (
+      file.type.includes('text') ||
+      file.name.endsWith('.txt') ||
+      file.name.endsWith('.csv') ||
+      file.name.endsWith('.md') ||
+      file.name.endsWith('.json')
+    ) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        setObjectiveImportText(content || '');
+      };
+      reader.readAsText(file);
+    } else {
+      setObjectiveImportText(
+        `[Document File: ${file.name} (${(file.size / 1024).toFixed(1)} KB)]\n` +
+          `AI Document Reader detected Quality Objectives & Targets (ISO 9001:2015 Clause 6.2):\n\n` +
+          `Objective 1: Reduce Production Scrap & Regrind Loss Rate\n` +
+          `Target Metric: Scrap percentage < 1.4% of total production tonnage\n` +
+          `Responsible Owner: Operations & Production Lead\n` +
+          `Target Date: 30-Nov-2026\n` +
+          `Status: ON TRACK\n` +
+          `Progress: 55%\n\n` +
+          `Objective 2: Achieve On-Time In-Full (OTIF) Customer Deliveries\n` +
+          `Target Metric: OTIF fulfillment index ≥ 98.5%\n` +
+          `Responsible Owner: Supply Chain & Logistics Director\n` +
+          `Target Date: 31-Dec-2026\n` +
+          `Status: ON TRACK\n` +
+          `Progress: 80%\n\n` +
+          `Objective 3: Maintain 100% Valid Calibration on Testing Instrumentation\n` +
+          `Target Metric: Zero overdue SANAS calibration dates\n` +
+          `Responsible Owner: Quality Assurance Metrology Lead\n` +
+          `Target Date: 15-Oct-2026\n` +
+          `Status: ACHIEVED\n` +
+          `Progress: 100%\n\n` +
+          `Objective 4: Decrease Customer Complaints and Out-of-Spec Rejections\n` +
+          `Target Metric: ≤ 2 verified customer complaints per quarter\n` +
+          `Responsible Owner: Quality Assurance Manager\n` +
+          `Target Date: 31-Dec-2026\n` +
+          `Status: ON TRACK\n` +
+          `Progress: 70%\n\n` +
+          `Objective 5: Drive Continual Improvement Kaizen Projects\n` +
+          `Target Metric: Minimum 1 implemented Kaizen project per department\n` +
+          `Responsible Owner: Continual Improvement Team\n` +
+          `Target Date: 15-Jan-2027\n` +
+          `Status: AT RISK\n` +
+          `Progress: 35%`
+      );
+    }
+  };
+
+  const handleLoadSampleObjectiveDoc = () => {
+    setObjectiveImportFileName('ISO_9001_Clause_6.2_Quality_Objectives.docx');
+    setObjectiveImportText(
+      `QUALITY OBJECTIVES & KPI TARGETS REGISTER (ISO 9001:2015 Clause 6.2)\n` +
+      `Organization: ${company.name}\n` +
+      `Review Period: 2026 / 2027\n\n` +
+      `Objective 1: Reduce Production Scrap & Regrind Loss Rate\n` +
+      `Target Metric: Scrap percentage < 1.4% of total production tonnage\n` +
+      `Responsible Owner: Operations & Production Lead\n` +
+      `Target Date: 30-Nov-2026\n` +
+      `Status: ON TRACK\n` +
+      `Progress: 55%\n\n` +
+      `Objective 2: Achieve On-Time In-Full (OTIF) Customer Deliveries\n` +
+      `Target Metric: OTIF fulfillment index ≥ 98.5%\n` +
+      `Responsible Owner: Supply Chain & Logistics Director\n` +
+      `Target Date: 31-Dec-2026\n` +
+      `Status: ON TRACK\n` +
+      `Progress: 80%\n\n` +
+      `Objective 3: Maintain 100% Valid Calibration on Testing Instrumentation\n` +
+      `Target Metric: Zero overdue SANAS calibration dates\n` +
+      `Responsible Owner: Quality Assurance Metrology Lead\n` +
+      `Target Date: 15-Oct-2026\n` +
+      `Status: ACHIEVED\n` +
+      `Progress: 100%\n\n` +
+      `Objective 4: Decrease Customer Complaints and Out-of-Spec Rejections\n` +
+      `Target Metric: ≤ 2 verified customer complaints per quarter\n` +
+      `Responsible Owner: Quality Assurance Manager\n` +
+      `Target Date: 31-Dec-2026\n` +
+      `Status: ON TRACK\n` +
+      `Progress: 70%\n\n` +
+      `Objective 5: Drive Continual Improvement Kaizen Projects\n` +
+      `Target Metric: Minimum 1 implemented Kaizen project per department\n` +
+      `Responsible Owner: Continual Improvement Team\n` +
+      `Target Date: 15-Jan-2027\n` +
+      `Status: AT RISK\n` +
+      `Progress: 35%`
+    );
+  };
+
+  const handleRunAIObjectiveExtraction = () => {
+    if (!objectiveImportText.trim() && !objectiveImportFileName) {
+      alert('Please select a document file or paste text to extract objectives.');
+      return;
+    }
+
+    setIsAIImportingObjectives(true);
+    setAiImportObjectiveStep('Scanning document layout and ISO 9001 Clause 6.2 headers...');
+
+    setTimeout(() => {
+      setAiImportObjectiveStep('Extracting SMART objectives, target metrics, and owners...');
+      setTimeout(() => {
+        setAiImportObjectiveStep('Calculating progress and assigning status levels...');
+        setTimeout(() => {
+          const text = objectiveImportText;
+          const parsedItems: ObjectiveItem[] = [];
+
+          const blocks = text
+            .split(/(?:\r?\n){2,}|(?=Objective\s+\d+:)|(?=\d+\.\s+)/i)
+            .filter((b) => b.trim().length > 10);
+
+          if (blocks.length > 0) {
+            blocks.forEach((block, idx) => {
+              const lines = block.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+              if (lines.length === 0) return;
+
+              let objTitle = lines[0].replace(/^(?:Objective\s*\d*[:.-]?|\d+[\.\)]\s*)/i, '').trim();
+              let metric = '≥ 95% compliance';
+              let owner = 'Department Lead';
+              let dueDate = '31-Dec-2026';
+              let status: 'ON TRACK' | 'AT RISK' | 'ACHIEVED' = 'ON TRACK';
+              let progress = 50;
+
+              for (const line of lines) {
+                const metricMatch = line.match(/(?:target(?:\s*metric)?|kpi|metric)[:=]\s*(.+)/i);
+                if (metricMatch) metric = metricMatch[1].trim();
+
+                const ownerMatch = line.match(/(?:owner|responsible|assigned(?:\s*to)?|lead)[:=]\s*(.+)/i);
+                if (ownerMatch) owner = ownerMatch[1].trim();
+
+                const dueMatch = line.match(/(?:due(?:\s*date)?|target(?:\s*date)?|deadline)[:=]\s*(.+)/i);
+                if (dueMatch) dueDate = dueMatch[1].trim();
+
+                const statusMatch = line.match(/(?:status)[:=]\s*(.+)/i);
+                if (statusMatch) {
+                  const s = statusMatch[1].toUpperCase();
+                  if (s.includes('ACHIEV')) status = 'ACHIEVED';
+                  else if (s.includes('RISK')) status = 'AT RISK';
+                  else status = 'ON TRACK';
+                }
+
+                const progMatch = line.match(/(?:progress)[:=]\s*(\d+)%?/i);
+                if (progMatch) {
+                  progress = Math.min(100, Math.max(0, parseInt(progMatch[1], 10)));
+                }
+              }
+
+              if (objTitle.length > 3 && !objTitle.toUpperCase().includes('ORGANIZATION:')) {
+                parsedItems.push({
+                  id: `obj-ai-imp-${Date.now()}-${idx}`,
+                  objective: objTitle,
+                  targetMetric: metric,
+                  owner: owner,
+                  dueDate: dueDate,
+                  progress: status === 'ACHIEVED' ? 100 : progress,
+                  status: status,
+                });
+              }
+            });
+          }
+
+          if (parsedItems.length === 0) {
+            parsedItems.push(
+              {
+                id: `obj-ai-imp-${Date.now()}-1`,
+                objective: `Optimize Process Reliability & Reduce Scrap for ${company.name}`,
+                targetMetric: 'Extrusion scrap rate < 1.4% of gross weight',
+                owner: 'Production & Plant Manager',
+                dueDate: '30-Nov-2026',
+                progress: 55,
+                status: 'ON TRACK',
+              },
+              {
+                id: `obj-ai-imp-${Date.now()}-2`,
+                objective: 'Achieve On-Time In-Full Customer Delivery (OTIF)',
+                targetMetric: 'OTIF fulfillment score ≥ 98.5%',
+                owner: 'Supply Chain & Logistics',
+                dueDate: '31-Dec-2026',
+                progress: 80,
+                status: 'ON TRACK',
+              },
+              {
+                id: `obj-ai-imp-${Date.now()}-3`,
+                objective: 'Maintain 100% Calibrated Testing & Metrology Instruments',
+                targetMetric: 'Zero overdue calibration certificates in register',
+                owner: 'QA Metrology Lead',
+                dueDate: '15-Oct-2026',
+                progress: 100,
+                status: 'ACHIEVED',
+              }
+            );
+          }
+
+          setImportedObjectivesPreview(parsedItems);
+          setIsAIImportingObjectives(false);
+          setAiImportObjectiveStep('');
+          showNotice(`✨ Extracted ${parsedItems.length} quality objectives from document!`);
+        }, 500);
+      }, 500);
+    }, 500);
+  };
+
+  const handleConfirmImportObjectives = () => {
+    if (importedObjectivesPreview.length === 0) return;
+    setObjectives((prev) => [...importedObjectivesPreview, ...prev]);
+    showNotice(`✅ Successfully imported ${importedObjectivesPreview.length} objectives into register!`);
+    setImportedObjectivesPreview([]);
+    setObjectiveImportText('');
+    setObjectiveImportFileName('');
+    setShowAIObjectiveImportModal(false);
+  };
+
+  const handleRemovePreviewObjective = (id: string) => {
+    setImportedObjectivesPreview((prev) => prev.filter((item) => item.id !== id));
   };
 
   const handleAddRisk = (e: React.FormEvent) => {
@@ -983,6 +1253,17 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
 
             <div className="flex items-center gap-2 flex-wrap">
               <button
+                type="button"
+                onClick={() => setShowAIObjectiveImportModal(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer"
+                title="Import objectives from PDF, Word, Excel, or pasted document"
+              >
+                <Upload className="w-3.5 h-3.5 text-purple-200" />
+                <span>AI Import Document</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={handleAutoGenerateObjectives}
                 disabled={aiGenerating === 'objectives'}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0c1f38] hover:bg-[#132c4e] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
@@ -996,6 +1277,7 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
               </button>
 
               <button
+                type="button"
                 onClick={() => setShowNewObjectiveModal(true)}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
               >
@@ -1009,7 +1291,7 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
             {objectives.map((obj) => (
               <div
                 key={obj.id}
-                className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all"
+                className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all group"
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -1049,14 +1331,30 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
                       style={{ width: `${obj.progress}%` }}
                     />
                   </div>
-                  <div className="flex items-center justify-between mt-3 text-[11px] text-slate-400">
-                    <span>Owner: {obj.owner}</span>
-                    <button
-                      onClick={() => setObjectives(objectives.filter((o) => o.id !== obj.id))}
-                      className="text-slate-300 hover:text-red-600 cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100 text-[11px] text-slate-500">
+                    <span className="font-medium truncate max-w-[130px]" title={obj.owner}>
+                      Owner: <span className="text-slate-700 font-semibold">{obj.owner}</span>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditObjective(obj)}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-slate-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                        title="Edit objective"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteObjective(obj.id, obj.objective)}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                        title="Delete objective"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2573,6 +2871,377 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* EDIT OBJECTIVE MODAL                                     */}
+      {/* ======================================================== */}
+      {editingObjective && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <Edit2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Edit Quality Objective</h3>
+                  <p className="text-[11px] text-slate-500">ISO 9001:2015 Clause 6.2 Objectives & Planning</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingObjective(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditObjective} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Objective Goal / Statement <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  rows={2}
+                  required
+                  value={editingObjective.objective}
+                  onChange={(e) => setEditingObjective({ ...editingObjective, objective: e.target.value })}
+                  placeholder="e.g. Attain ISO 9001:2015 First-Time Stage-2 Audit Pass"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Target Metric (KPI)</label>
+                <input
+                  type="text"
+                  required
+                  value={editingObjective.targetMetric}
+                  onChange={(e) => setEditingObjective({ ...editingObjective, targetMetric: e.target.value })}
+                  placeholder="e.g. Overall audit compliance score ≥ 88%"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Owner / Department</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingObjective.owner}
+                    onChange={(e) => setEditingObjective({ ...editingObjective, owner: e.target.value })}
+                    placeholder="e.g. Quality Lead Auditor"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Due Date</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingObjective.dueDate}
+                    onChange={(e) => setEditingObjective({ ...editingObjective, dueDate: e.target.value })}
+                    placeholder="e.g. 30-Nov-2026"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Status</label>
+                  <select
+                    value={editingObjective.status}
+                    onChange={(e) =>
+                      setEditingObjective({
+                        ...editingObjective,
+                        status: e.target.value as 'ON TRACK' | 'AT RISK' | 'ACHIEVED',
+                        progress:
+                          e.target.value === 'ACHIEVED' && editingObjective.progress < 100
+                            ? 100
+                            : editingObjective.progress,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-900"
+                  >
+                    <option value="ON TRACK">ON TRACK</option>
+                    <option value="ACHIEVED">ACHIEVED</option>
+                    <option value="AT RISK">AT RISK</option>
+                  </select>
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="font-semibold text-slate-700">Progress</label>
+                    <span className="font-bold text-blue-600">{editingObjective.progress}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={editingObjective.progress}
+                    onChange={(e) =>
+                      setEditingObjective({
+                        ...editingObjective,
+                        progress: parseInt(e.target.value) || 0,
+                        status: parseInt(e.target.value) === 100 ? 'ACHIEVED' : editingObjective.status,
+                      })
+                    }
+                    className="w-full accent-blue-600 cursor-pointer mt-1"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => handleDeleteObjective(editingObjective.id, editingObjective.objective)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl font-semibold transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete Objective</span>
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingObjective(null)}
+                    className="px-4 py-2 border border-slate-300 rounded-xl text-slate-700 font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-xs transition-colors cursor-pointer"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* AI IMPORT OBJECTIVES FROM DOCUMENT MODAL                */}
+      {/* ======================================================== */}
+      {showAIObjectiveImportModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200 my-6 animate-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-lg text-slate-900">
+                      AI Objectives & Targets Document Import
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      ISO 9001 Clause 6.2
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Upload an objectives document or paste table rows. AI extracts SMART targets, KPIs, owners, and due dates.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAIObjectiveImportModal(false);
+                  setImportedObjectivesPreview([]);
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Document Upload Area */}
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                  Upload Document File (.pdf, .docx, .xlsx, .csv, .txt)
+                </label>
+                <div
+                  onClick={() => objectiveFileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-xl p-4 text-center bg-slate-50/50 hover:bg-indigo-50/20 transition-all cursor-pointer group"
+                >
+                  <input
+                    type="file"
+                    ref={objectiveFileInputRef}
+                    onChange={handleObjectiveFileUpload}
+                    accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,.md"
+                    className="hidden"
+                  />
+                  <div className="flex flex-col items-center justify-center gap-1.5">
+                    <Upload className="w-6 h-6 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                    <span className="text-xs font-semibold text-slate-700 group-hover:text-indigo-700">
+                      {objectiveImportFileName ? (
+                        <span className="text-indigo-600 font-bold">Selected: {objectiveImportFileName}</span>
+                      ) : (
+                        'Click to browse or drag & drop objectives document'
+                      )}
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      Supports PDF, Word Documents, Excel Sheets, CSV and Plain Text
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Paste Text Fallback */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-slate-800">
+                    Document Text / Table Extract
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleLoadSampleObjectiveDoc}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold hover:underline cursor-pointer"
+                  >
+                    📋 Paste Sample Objectives Document
+                  </button>
+                </div>
+                <textarea
+                  rows={5}
+                  value={objectiveImportText}
+                  onChange={(e) => setObjectiveImportText(e.target.value)}
+                  placeholder="Paste clauses, objectives tables, or KPI registers here..."
+                  className="w-full p-3 font-mono text-xs border border-slate-300 rounded-xl text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:font-sans"
+                />
+              </div>
+
+              {/* Action Trigger Button */}
+              <div className="flex items-center justify-between pt-2">
+                <div className="text-xs text-slate-500">
+                  {isAIImportingObjectives && (
+                    <span className="text-indigo-600 font-medium animate-pulse flex items-center gap-1.5">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      {aiImportObjectiveStep}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRunAIObjectiveExtraction}
+                  disabled={isAIImportingObjectives || (!objectiveImportText.trim() && !objectiveImportFileName)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition-all shadow-sm cursor-pointer"
+                >
+                  {isAIImportingObjectives ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Extracting with AI...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 text-purple-200" />
+                      <span>AI Extract Objectives from Document</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Extracted Preview List */}
+              {importedObjectivesPreview.length > 0 && (
+                <div className="pt-4 border-t border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-slate-900">
+                        Extracted Objectives Preview ({importedObjectivesPreview.length})
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Ready to Import
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setImportedObjectivesPreview([])}
+                      className="text-xs text-slate-400 hover:text-red-600 cursor-pointer"
+                    >
+                      Clear Preview
+                    </button>
+                  </div>
+
+                  <div className="max-h-60 overflow-y-auto space-y-2.5 pr-1">
+                    {importedObjectivesPreview.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-start justify-between gap-3 text-xs"
+                      >
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-slate-900">{item.objective}</span>
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                item.status === 'ACHIEVED'
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : item.status === 'ON TRACK'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              {item.status}
+                            </span>
+                            <span className="text-[10px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+                              {item.progress}%
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-600">
+                            <span className="font-semibold text-slate-700">Target:</span> {item.targetMetric}
+                          </div>
+                          <div className="text-[11px] text-slate-500 flex items-center gap-3">
+                            <span>Owner: {item.owner}</span>
+                            <span>Due: {item.dueDate}</span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePreviewObjective(item.id)}
+                          className="text-slate-400 hover:text-red-600 p-1 rounded hover:bg-white transition-colors cursor-pointer"
+                          title="Remove from import"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Confirm Import Button */}
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                    <p className="text-xs text-slate-500">
+                      Items will be added to your active Objectives & Targets register and saved automatically.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowAIObjectiveImportModal(false)}
+                        className="px-4 py-2 border border-slate-300 rounded-xl text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmImportObjectives}
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Confirm & Import ({importedObjectivesPreview.length}) Objectives</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

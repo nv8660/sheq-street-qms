@@ -573,6 +573,10 @@ export function App() {
     setReviews([review, ...reviews]);
   };
 
+  const handleUpdateReview = (review: ReviewMeeting) => {
+    setReviews(reviews.map((r) => (r.id === review.id ? review : r)));
+  };
+
   const handleDeleteReview = (id: string) => {
     setReviews(reviews.filter((r) => r.id !== id));
   };
@@ -704,6 +708,7 @@ export function App() {
             company={company}
             reviews={reviews}
             onAddReview={handleAddReview}
+            onUpdateReview={handleUpdateReview}
             onDeleteReview={handleDeleteReview}
           />
         );

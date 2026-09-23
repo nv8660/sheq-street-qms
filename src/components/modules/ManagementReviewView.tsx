@@ -6,54 +6,63 @@ import {
   Trash2,
   ChevronDown,
   X,
-  Clock,
-  MapPin,
-  User,
-  Users,
   Eye,
+  ArrowLeft,
+  Pencil,
   CheckCircle2,
-  FileCheck,
+  Download,
 } from 'lucide-react';
 import { ReviewMeeting, Company } from '../../types';
+import { downloadReviewPDF } from '../../utils/managementReviewExport';
 
 interface ManagementReviewViewProps {
   company: Company;
   reviews: ReviewMeeting[];
   onAddReview: (review: ReviewMeeting) => void;
+  onUpdateReview?: (review: ReviewMeeting) => void;
   onDeleteReview: (id: string) => void;
 }
 
-const DEFAULT_OBJECTIVE =
-  "The organisation's management review of the quality management system to ensure suitability, adequacy and effectiveness. The review is to include the assessment of opportunities for improvement and any potential changes to the quality management system, including quality policy, objectives & targets, and their alignment with business strategy.";
+export const DEFAULT_OBJECTIVE =
+  "The organisation's management review of the quality management system to ensure suitability, adequacy and effectiveness. The review is to include the assessment of opportunities for improvement and any potential changes to the quality management system, including quality policy, objectives & targets, and their alignment with business objectives and overall strategy.";
 
-const DEFAULT_AGENDA =
-  '1. Status of actions from previous management reviews\n' +
-  '2. Changes in external and internal issues relevant to QMS\n' +
-  '3. Information on QMS performance and effectiveness (customer satisfaction, quality objectives, audit results, process performance, nonconformities)\n' +
-  '4. Adequacy of resources\n' +
-  '5. Effectiveness of actions taken to address risks and opportunities\n' +
-  '6. Opportunities for continual improvement';
+export const DEFAULT_AGENDA =
+  "1) Quality management system documents status.\n" +
+  "2) Quality policy & objectives\n" +
+  "3) External and internal issues\n" +
+  "4) Risks and opportunities\n" +
+  "5) Audit results:\n" +
+  "   a) Internal audits\n" +
+  "   b) External audits\n" +
+  "6) Customer satisfaction & feedback\n" +
+  "7) Supplier performance\n" +
+  "8) Non-conformance & corrective actions (CAPA)\n" +
+  "9) Changes that could affect the QMS\n" +
+  "10) Resource adequacy & improvements";
 
 export const ManagementReviewView: React.FC<ManagementReviewViewProps> = ({
   company,
   reviews,
   onAddReview,
+  onUpdateReview,
   onDeleteReview,
 }) => {
   const [activeTab, setActiveTab] = useState<'planned' | 'minutes'>('planned');
   const [year, setYear] = useState('2026');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState<ReviewMeeting | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState<ReviewMeeting | null>(null);
+  const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
 
-  // Form states matching pinned image
-  // "don't type that title that has been given in that image" -> titleInput starts empty!
+  // New Review Form states
   const [titleInput, setTitleInput] = useState('');
   const [chairedBy, setChairedBy] = useState('');
   const [apologies, setApologies] = useState('None');
   const [members, setMembers] = useState('');
-  const [dateInput, setDateInput] = useState('22-09-2026');
+  const [dateInput, setDateInput] = useState('17-Sept-2026');
   const [timeInput, setTimeInput] = useState('');
-  const [venue, setVenue] = useState('');
+  const [venue, setVenue] = useState('rmz');
   const [status, setStatus] = useState('Planned');
   const [objective, setObjective] = useState(DEFAULT_OBJECTIVE);
   const [agenda, setAgenda] = useState(DEFAULT_AGENDA);
@@ -63,9 +72,9 @@ export const ManagementReviewView: React.FC<ManagementReviewViewProps> = ({
     setChairedBy('');
     setApologies('None');
     setMembers('');
-    setDateInput('22-09-2026');
+    setDateInput('17-Sept-2026');
     setTimeInput('');
-    setVenue('');
+    setVenue('rmz');
     setStatus('Planned');
     setObjective(DEFAULT_OBJECTIVE);
     setAgenda(DEFAULT_AGENDA);
@@ -74,6 +83,18 @@ export const ManagementReviewView: React.FC<ManagementReviewViewProps> = ({
   const handleOpenModal = () => {
     resetForm();
     setIsModalOpen(true);
+  };
+
+  const handleDownloadPdf = (review: ReviewMeeting) => {
+    setDownloadNotice(`Preparing PDF for "${review.title}"...`);
+    try {
+      downloadReviewPDF(review, company);
+    } catch (err) {
+      console.error('Download error:', err);
+    }
+    setTimeout(() => {
+      setDownloadNotice(null);
+    }, 4000);
   };
 
   const handleCreate = (e: React.FormEvent) => {
@@ -85,14 +106,14 @@ export const ManagementReviewView: React.FC<ManagementReviewViewProps> = ({
       title: titleInput.trim(),
       status: status.toUpperCase() === 'COMPLETED' ? 'COMPLETED' : 'PLANNED',
       dateStr: dateInput,
-      organizer: chairedBy.trim() || company.name || 'Management',
+      organizer: chairedBy.trim() || company.name || 'rmz',
       chairedBy: chairedBy.trim() || undefined,
-      apologies: apologies.trim() || undefined,
+      apologies: apologies.trim() || 'None',
       membersInAttendance: members.trim() || undefined,
       time: timeInput.trim() || undefined,
-      venue: venue.trim() || undefined,
-      objective: objective.trim() || undefined,
-      agenda: agenda.trim() || undefined,
+      venue: venue.trim() || 'rmz',
+      objective: objective.trim() || DEFAULT_OBJECTIVE,
+      agenda: agenda.trim() || DEFAULT_AGENDA,
     };
 
     onAddReview(newReview);
@@ -100,6 +121,340 @@ export const ManagementReviewView: React.FC<ManagementReviewViewProps> = ({
     setIsModalOpen(false);
   };
 
+  const handleOpenEditModal = (review: ReviewMeeting) => {
+    setEditFormData({
+      ...review,
+      objective: review.objective || DEFAULT_OBJECTIVE,
+      agenda: review.agenda || DEFAULT_AGENDA,
+      apologies: review.apologies || 'None',
+      venue: review.venue || 'rmz',
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editFormData) return;
+
+    const updated: ReviewMeeting = {
+      ...editFormData,
+      title: editFormData.title.trim() || 'ISO 9001:2015 Management Review Meeting',
+      dateStr: editFormData.dateStr.trim() || '17-Sept-2026',
+      venue: editFormData.venue?.trim() || 'rmz',
+      apologies: editFormData.apologies?.trim() || 'None',
+      objective: editFormData.objective?.trim() || DEFAULT_OBJECTIVE,
+      agenda: editFormData.agenda?.trim() || DEFAULT_AGENDA,
+    };
+
+    setSelectedReview(updated);
+    if (onUpdateReview) {
+      onUpdateReview(updated);
+    }
+    setIsEditModalOpen(false);
+  };
+
+  // If a review is selected, display the exact dedicated view matching the user's screenshot
+  if (selectedReview) {
+    return (
+      <div className="space-y-4 max-w-7xl mx-auto pb-12 animate-in fade-in duration-200">
+        {/* Navigation & Breadcrumb Row */}
+        <div className="flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={() => setSelectedReview(null)}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 shadow-2xs"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to Management Reviews</span>
+          </button>
+
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+            <span className="text-slate-700 font-bold">{company.name}</span>
+            <span className="px-1.5 py-0.5 rounded border border-blue-300 bg-blue-50 text-blue-700 text-[10px] font-bold tracking-wider uppercase">
+              {company.plan || 'ACTIVE'}
+            </span>
+          </div>
+        </div>
+
+        {/* Navy Header Banner matching user's screenshot */}
+        <div className="bg-[#122b4e] rounded-2xl p-6 sm:p-8 text-white shadow-md relative overflow-hidden">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-slate-300 block mb-1">
+                MANAGEMENT REVIEW
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                {selectedReview.title}
+              </h1>
+            </div>
+
+            <div className="flex flex-col items-end flex-shrink-0">
+              <span className="text-xs sm:text-sm font-semibold text-white/90">
+                {company.name || 'nk'}
+              </span>
+              <span className="mt-2 px-3 py-0.5 rounded-full border border-amber-400 text-amber-300 bg-transparent text-[11px] sm:text-xs font-bold tracking-widest uppercase">
+                {selectedReview.status}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Bar with Download PDF and Edit Details */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1 pt-1">
+          <div className="text-xs text-slate-500 font-medium">
+            {downloadNotice ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold animate-in fade-in">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                {downloadNotice}
+              </span>
+            ) : (
+              <span className="text-slate-500">
+                DOCUMENT #: <strong className="text-slate-800 font-bold">{company.name ? company.name.slice(0, 4).toUpperCase().replace(/[^A-Z0-9]/g, '') : 'NK'}-DC-014</strong>
+                &nbsp;•&nbsp;
+                <span>ISO 9001:2015 Clause 9.3</span>
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleDownloadPdf(selectedReview)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#2563eb] hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
+              title="Download Management Review as Print-Ready PDF"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download PDF</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOpenEditModal(selectedReview)}
+              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors cursor-pointer px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 bg-white"
+            >
+              <Pencil className="w-3.5 h-3.5 text-slate-500" />
+              <span>Edit Details</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Two-Column Master Details Table Card */}
+        <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
+          <div className="divide-y divide-slate-200/90 text-sm">
+            {/* Meeting */}
+            <div className="flex flex-col sm:flex-row">
+              <div className="w-full sm:w-56 bg-slate-50/80 p-4 sm:p-5 font-bold text-slate-900 border-b sm:border-b-0 sm:border-r border-slate-200/90 flex-shrink-0">
+                Meeting
+              </div>
+              <div className="p-4 sm:p-5 flex-1 text-slate-800 font-medium">
+                {selectedReview.title}
+              </div>
+            </div>
+
+            {/* Apologies */}
+            <div className="flex flex-col sm:flex-row">
+              <div className="w-full sm:w-56 bg-slate-50/80 p-4 sm:p-5 font-bold text-slate-900 border-b sm:border-b-0 sm:border-r border-slate-200/90 flex-shrink-0">
+                Apologies
+              </div>
+              <div className="p-4 sm:p-5 flex-1 text-slate-800">
+                {selectedReview.apologies || 'None'}
+              </div>
+            </div>
+
+            {/* Date */}
+            <div className="flex flex-col sm:flex-row">
+              <div className="w-full sm:w-56 bg-slate-50/80 p-4 sm:p-5 font-bold text-slate-900 border-b sm:border-b-0 sm:border-r border-slate-200/90 flex-shrink-0">
+                Date
+              </div>
+              <div className="p-4 sm:p-5 flex-1 text-slate-800">
+                {selectedReview.dateStr}
+              </div>
+            </div>
+
+            {/* Venue */}
+            <div className="flex flex-col sm:flex-row">
+              <div className="w-full sm:w-56 bg-slate-50/80 p-4 sm:p-5 font-bold text-slate-900 border-b sm:border-b-0 sm:border-r border-slate-200/90 flex-shrink-0">
+                Venue
+              </div>
+              <div className="p-4 sm:p-5 flex-1 text-slate-800">
+                {selectedReview.venue || 'rmz'}
+              </div>
+            </div>
+
+            {/* Meeting objective */}
+            <div className="flex flex-col sm:flex-row">
+              <div className="w-full sm:w-56 bg-slate-50/80 p-4 sm:p-5 font-bold text-slate-900 border-b sm:border-b-0 sm:border-r border-slate-200/90 flex-shrink-0">
+                Meeting objective
+              </div>
+              <div className="p-4 sm:p-5 flex-1 text-slate-800 leading-relaxed font-normal">
+                {selectedReview.objective || DEFAULT_OBJECTIVE}
+              </div>
+            </div>
+
+            {/* Meeting agenda */}
+            <div className="flex flex-col sm:flex-row">
+              <div className="w-full sm:w-56 bg-slate-50/80 p-4 sm:p-5 font-bold text-slate-900 border-b sm:border-b-0 sm:border-r border-slate-200/90 flex-shrink-0">
+                Meeting agenda
+              </div>
+              <div className="p-4 sm:p-5 flex-1 text-slate-800 leading-relaxed whitespace-pre-line font-normal">
+                {selectedReview.agenda || DEFAULT_AGENDA}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Edit Details Modal */}
+        {isEditModalOpen && editFormData && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+              <div className="flex items-center justify-between p-5 px-6 border-b border-slate-100">
+                <h2 className="text-xl font-bold text-slate-900">Edit Meeting Details</h2>
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEdit} className="flex flex-col flex-1 overflow-hidden">
+                <div className="p-6 space-y-4 overflow-y-auto flex-1 text-left">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                      Meeting Title <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editFormData.title}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, title: e.target.value })
+                      }
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                        Date
+                      </label>
+                      <input
+                        type="text"
+                        value={editFormData.dateStr}
+                        onChange={(e) =>
+                          setEditFormData({ ...editFormData, dateStr: e.target.value })
+                        }
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                        Venue
+                      </label>
+                      <input
+                        type="text"
+                        value={editFormData.venue || ''}
+                        onChange={(e) =>
+                          setEditFormData({ ...editFormData, venue: e.target.value })
+                        }
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                        Apologies
+                      </label>
+                      <input
+                        type="text"
+                        value={editFormData.apologies || ''}
+                        onChange={(e) =>
+                          setEditFormData({ ...editFormData, apologies: e.target.value })
+                        }
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                        Status
+                      </label>
+                      <select
+                        value={editFormData.status}
+                        onChange={(e) =>
+                          setEditFormData({
+                            ...editFormData,
+                            status: e.target.value as any,
+                          })
+                        }
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs cursor-pointer"
+                      >
+                        <option value="PLANNED">PLANNED</option>
+                        <option value="IN PROGRESS">IN PROGRESS</option>
+                        <option value="COMPLETED">COMPLETED</option>
+                        <option value="CANCELLED">CANCELLED</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                      Meeting Objective
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={editFormData.objective || ''}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, objective: e.target.value })
+                      }
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs resize-y leading-relaxed"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                      Meeting Agenda
+                    </label>
+                    <textarea
+                      rows={8}
+                      value={editFormData.agenda || ''}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, agenda: e.target.value })
+                      }
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs font-sans text-xs leading-relaxed resize-y"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 p-4 px-6 border-t border-slate-100 bg-slate-50/50">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-[#2563eb] hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-xs transition-colors cursor-pointer"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Otherwise, render list view
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-200">
       {/* Top Breadcrumb */}
@@ -148,7 +503,7 @@ export const ManagementReviewView: React.FC<ManagementReviewViewProps> = ({
         <div className="h-3 w-px bg-slate-200" />
         <div>
           <span className="font-semibold text-slate-500">LAST UPDATED:</span>{' '}
-          <span className="font-bold text-slate-900">16 Sep 2026</span>
+          <span className="font-bold text-slate-900">17 Sep 2026</span>
         </div>
       </div>
 
@@ -202,15 +557,18 @@ export const ManagementReviewView: React.FC<ManagementReviewViewProps> = ({
           reviews.map((rev) => (
             <div
               key={rev.id}
-              className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs hover:border-slate-300 transition-colors"
+              onClick={() => setSelectedReview(rev)}
+              className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs hover:border-blue-400 hover:shadow-xs transition-all cursor-pointer group"
             >
               <div className="flex items-start sm:items-center gap-3.5">
-                <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 mt-0.5 sm:mt-0">
+                <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 mt-0.5 sm:mt-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                   <Calendar className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-sm text-slate-900">{rev.title}</span>
+                    <span className="font-bold text-sm text-slate-900 group-hover:text-blue-600 transition-colors">
+                      {rev.title}
+                    </span>
                     <span
                       className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wide ${
                         rev.status.toUpperCase() === 'COMPLETED'
@@ -233,16 +591,34 @@ export const ManagementReviewView: React.FC<ManagementReviewViewProps> = ({
               <div className="flex items-center gap-2 self-end sm:self-auto">
                 <button
                   type="button"
-                  onClick={() => setSelectedReview(rev)}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                  title="View Details"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownloadPdf(rev);
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                  title="Download PDF"
                 >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>Details</span>
+                  <Download className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Download PDF</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => onDeleteReview(rev.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedReview(rev);
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                  title="View Details"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>View Details</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteReview(rev.id);
+                  }}
                   className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
                   title="Delete Review"
                 >
@@ -254,7 +630,7 @@ export const ManagementReviewView: React.FC<ManagementReviewViewProps> = ({
         )}
       </div>
 
-      {/* New Management Review Modal matching Pinned Image */}
+      {/* New Management Review Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
@@ -273,7 +649,6 @@ export const ManagementReviewView: React.FC<ManagementReviewViewProps> = ({
             {/* Modal Body */}
             <form onSubmit={handleCreate} className="flex flex-col flex-1 overflow-hidden">
               <div className="p-6 space-y-4 overflow-y-auto flex-1 text-left">
-                {/* Meeting Title: Start EMPTY as requested by user ("don't type that title that has been given in that image") */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-900 mb-1.5">
                     Meeting Title <span className="text-red-500">*</span>
@@ -412,13 +787,13 @@ export const ManagementReviewView: React.FC<ManagementReviewViewProps> = ({
                 {/* Meeting Agenda */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-900 mb-1.5">
-                    Meeting Agenda (one item per line — auto-populates minutes table)
+                    Meeting Agenda (one item per line)
                   </label>
                   <textarea
-                    rows={5}
+                    rows={6}
                     value={agenda}
                     onChange={(e) => setAgenda(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs font-mono text-xs leading-relaxed resize-y"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs font-sans text-xs leading-relaxed resize-y"
                   />
                 </div>
               </div>
@@ -440,92 +815,6 @@ export const ManagementReviewView: React.FC<ManagementReviewViewProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Review Details View Modal */}
-      {selectedReview && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
-            <div className="flex items-center justify-between p-5 px-6 border-b border-slate-100">
-              <div>
-                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Management Review Details</span>
-                <h2 className="text-xl font-bold text-slate-900 mt-0.5">{selectedReview.title}</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedReview(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4 overflow-y-auto flex-1 text-sm text-slate-700">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
-                <div>
-                  <div className="text-[11px] font-bold text-slate-500 uppercase">Status</div>
-                  <div className="font-semibold text-slate-900 mt-0.5">{selectedReview.status}</div>
-                </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-500 uppercase">Date</div>
-                  <div className="font-semibold text-slate-900 mt-0.5">{selectedReview.dateStr}</div>
-                </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-500 uppercase">Time</div>
-                  <div className="font-semibold text-slate-900 mt-0.5">{selectedReview.time || 'Not specified'}</div>
-                </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-500 uppercase">Venue</div>
-                  <div className="font-semibold text-slate-900 mt-0.5">{selectedReview.venue || 'Not specified'}</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-white border border-slate-200 p-3.5 rounded-xl">
-                  <div className="text-xs font-bold text-slate-500 uppercase mb-1">Chaired By</div>
-                  <div className="font-semibold text-slate-900">{selectedReview.chairedBy || selectedReview.organizer}</div>
-                </div>
-                <div className="bg-white border border-slate-200 p-3.5 rounded-xl">
-                  <div className="text-xs font-bold text-slate-500 uppercase mb-1">Apologies</div>
-                  <div className="text-slate-800">{selectedReview.apologies || 'None'}</div>
-                </div>
-              </div>
-
-              {selectedReview.membersInAttendance && (
-                <div className="bg-white border border-slate-200 p-3.5 rounded-xl">
-                  <div className="text-xs font-bold text-slate-500 uppercase mb-1">Members in Attendance</div>
-                  <div className="text-slate-800">{selectedReview.membersInAttendance}</div>
-                </div>
-              )}
-
-              {selectedReview.objective && (
-                <div className="bg-white border border-slate-200 p-3.5 rounded-xl">
-                  <div className="text-xs font-bold text-slate-500 uppercase mb-1">Meeting Objective</div>
-                  <div className="text-slate-700 leading-relaxed text-xs">{selectedReview.objective}</div>
-                </div>
-              )}
-
-              {selectedReview.agenda && (
-                <div className="bg-white border border-slate-200 p-3.5 rounded-xl">
-                  <div className="text-xs font-bold text-slate-500 uppercase mb-1.5">Meeting Agenda</div>
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 font-mono text-xs whitespace-pre-wrap text-slate-800 leading-relaxed">
-                    {selectedReview.agenda}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end p-4 px-6 border-t border-slate-100 bg-slate-50/50">
-              <button
-                type="button"
-                onClick={() => setSelectedReview(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-sm font-semibold transition-colors cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
           </div>
         </div>
       )}
