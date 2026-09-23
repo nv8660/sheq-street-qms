@@ -84,6 +84,32 @@ export function App() {
       return;
     }
 
+    if (user.companyName && user.companyName.trim()) {
+      const trimmedComp = user.companyName.trim();
+      const existing = companies.find(
+        (c) => c.name.toLowerCase() === trimmedComp.toLowerCase()
+      );
+      if (existing) {
+        setCompany(existing);
+        try {
+          localStorage.setItem('sheq_company', JSON.stringify(existing));
+        } catch {}
+      } else {
+        const newComp: Company = {
+          ...company,
+          id: `comp-${Date.now()}`,
+          name: trimmedComp,
+          email: user.email,
+        };
+        setCompanies((prev) => [newComp, ...prev.filter((c) => c.id !== newComp.id)]);
+        setCompany(newComp);
+        try {
+          localStorage.setItem('sheq_company', JSON.stringify(newComp));
+          localStorage.setItem('sheq_companies_list', JSON.stringify([newComp, ...companies]));
+        } catch {}
+      }
+    }
+
     setCurrentUser(user);
     setSessionMode('selection');
     setShowLoginToast(true);
@@ -212,6 +238,33 @@ export function App() {
     ];
   });
 
+  const handleUpdateCompany = (updated: Partial<Company>) => {
+    setCompany((prev) => {
+      const next = { ...prev, ...updated };
+      try {
+        localStorage.setItem('sheq_company', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setCompanies((prev) => {
+      const next = prev.map((c) => (c.id === company.id ? { ...c, ...updated } : c));
+      try {
+        localStorage.setItem('sheq_companies_list', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    if (updated.name) {
+      setCurrentUser((prev) => {
+        if (!prev) return null;
+        const nextUser = { ...prev, companyName: updated.name! };
+        try {
+          localStorage.setItem('sheq_auth_user', JSON.stringify(nextUser));
+        } catch {}
+        return nextUser;
+      });
+    }
+  };
+
   const handleAddNewCompany = (newCompany: Company) => {
     setCompanies((prev) => {
       const filtered = prev.filter(
@@ -224,6 +277,14 @@ export function App() {
       return updated;
     });
     setCompany(newCompany);
+    setCurrentUser((prev) => {
+      if (!prev) return null;
+      const nextUser = { ...prev, companyName: newCompany.name };
+      try {
+        localStorage.setItem('sheq_auth_user', JSON.stringify(nextUser));
+      } catch {}
+      return nextUser;
+    });
     try {
       localStorage.setItem('sheq_company', JSON.stringify(newCompany));
     } catch {}
@@ -231,6 +292,14 @@ export function App() {
 
   const handleSwitchCompany = (targetCompany: Company) => {
     setCompany(targetCompany);
+    setCurrentUser((prev) => {
+      if (!prev) return null;
+      const nextUser = { ...prev, companyName: targetCompany.name };
+      try {
+        localStorage.setItem('sheq_auth_user', JSON.stringify(nextUser));
+      } catch {}
+      return nextUser;
+    });
     try {
       localStorage.setItem('sheq_company', JSON.stringify(targetCompany));
     } catch {}
@@ -248,6 +317,14 @@ export function App() {
     setCompany((prev) => {
       const remaining = companies.filter((c) => c.id !== targetCompanyId);
       const nextComp = remaining.length > 0 ? remaining[0] : initialCompany;
+      setCurrentUser((userPrev) => {
+        if (!userPrev) return null;
+        const nextUser = { ...userPrev, companyName: nextComp.name };
+        try {
+          localStorage.setItem('sheq_auth_user', JSON.stringify(nextUser));
+        } catch {}
+        return nextUser;
+      });
       try {
         localStorage.setItem('sheq_company', JSON.stringify(nextComp));
       } catch {}
@@ -317,6 +394,13 @@ export function App() {
       // ignore storage quota errors
     }
   }, [activeTab, company, companies, ncrs, auditRows, hrData, reviews, processes]);
+
+  // Dynamically update document title to active company name
+  React.useEffect(() => {
+    if (company?.name) {
+      document.title = `${company.name} | SHEQ Street QMS`;
+    }
+  }, [company?.name]);
 
   // Demo data refresh handler
   const handleLoadDemoData = () => {
@@ -527,22 +611,7 @@ export function App() {
                 return nextUser;
               });
             }}
-            onUpdateCompany={(updated) => {
-              setCompany((prev) => {
-                const next = { ...prev, ...updated };
-                try {
-                  localStorage.setItem('sheq_company', JSON.stringify(next));
-                } catch {}
-                return next;
-              });
-              setCompanies((prev) => {
-                const next = prev.map((c) => (c.id === company.id ? { ...c, ...updated } : c));
-                try {
-                  localStorage.setItem('sheq_companies_list', JSON.stringify(next));
-                } catch {}
-                return next;
-              });
-            }}
+            onUpdateCompany={handleUpdateCompany}
             onAddCompany={handleAddNewCompany}
             onCompanyChange={handleSwitchCompany}
             onLogout={handleLogout}
@@ -553,22 +622,7 @@ export function App() {
           <SettingsView
             company={company}
             companies={companies}
-            onUpdateCompany={(updated) => {
-              setCompany((prev) => {
-                const next = { ...prev, ...updated };
-                try {
-                  localStorage.setItem('sheq_company', JSON.stringify(next));
-                } catch {}
-                return next;
-              });
-              setCompanies((prev) => {
-                const next = prev.map((c) => (c.id === company.id ? { ...c, ...updated } : c));
-                try {
-                  localStorage.setItem('sheq_companies_list', JSON.stringify(next));
-                } catch {}
-                return next;
-              });
-            }}
+            onUpdateCompany={handleUpdateCompany}
             onAddCompany={handleAddNewCompany}
             onCompanyChange={handleSwitchCompany}
             onDeleteCompany={handleDeleteCompany}
@@ -578,15 +632,7 @@ export function App() {
         return (
           <BillingPlanView
             company={company}
-            onUpdateCompany={(updated) => {
-              setCompany((prev) => {
-                const next = { ...prev, ...updated };
-                try {
-                  localStorage.setItem('sheq_company', JSON.stringify(next));
-                } catch {}
-                return next;
-              });
-            }}
+            onUpdateCompany={handleUpdateCompany}
             onNavigate={(tab) => {
               setActiveTab(tab);
               window.scrollTo({ top: 0, behavior: 'smooth' });

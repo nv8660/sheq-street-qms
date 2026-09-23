@@ -25,6 +25,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { AuditProcessRow, AuditReportItem, Company, AuditFindingItem, TurtleAnalysis } from '../../types';
+import { getCompanyPrefix } from '../../utils/companyUtils';
 
 interface AuditManagementViewProps {
   company: Company;
@@ -620,7 +621,7 @@ export const AuditManagementView: React.FC<AuditManagementViewProps> = ({
 
             <div className="text-right">
               <div className="text-sm font-bold text-slate-200 mb-1">
-                {company.name?.toLowerCase() || 'nk'}
+                {company.name || 'Company'}
               </div>
               <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-slate-800/80 text-slate-300 border border-slate-700 uppercase tracking-wider">
                 {activeReport.status?.toUpperCase() || 'DRAFT'}
@@ -1286,7 +1287,7 @@ export const AuditManagementView: React.FC<AuditManagementViewProps> = ({
             <div className="flex items-center gap-1.5">
               <FileText className="w-4 h-4 text-slate-400" />
               <span className="font-semibold text-slate-500">DOCUMENT #:</span>
-              <span className="font-bold text-slate-900">NK-DC-012</span>
+              <span className="font-bold text-slate-900">{getCompanyPrefix(company?.name)}-DC-012</span>
             </div>
             <div className="h-3 w-px bg-slate-200" />
             <div>

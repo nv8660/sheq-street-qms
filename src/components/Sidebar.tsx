@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { NavigationTab, Company, AuthUser } from '../types';
 import { AddCompanyModal } from './AddCompanyModal';
+import { getCompanyPrefix } from '../utils/companyUtils';
 
 interface SidebarProps {
   activeTab: NavigationTab;
@@ -152,13 +153,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => setCompanyDropdownOpen(!companyDropdownOpen)}
             className="bg-[#142037] hover:bg-[#182643] border border-[#1e2f50] rounded-xl p-2.5 flex items-center justify-between cursor-pointer transition-colors"
           >
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center">
-                <Building2 className="w-4 h-4" />
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 font-bold text-xs flex items-center justify-center flex-shrink-0 tracking-wider">
+                {getCompanyPrefix(activeCompany.name)}
               </div>
-              <div className="flex flex-col text-left">
+              <div className="flex flex-col text-left min-w-0">
                 <span className="text-[11px] text-slate-400 font-medium leading-none">Company</span>
-                <span className="text-sm font-semibold text-white mt-1 leading-none">
+                <span className="text-sm font-semibold text-white mt-1 leading-none truncate max-w-[130px]">
                   {activeCompany.name}
                 </span>
               </div>

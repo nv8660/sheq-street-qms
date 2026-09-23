@@ -20,6 +20,7 @@ import {
   User,
 } from 'lucide-react';
 import { Company } from '../../types';
+import { getCompanyPrefix, getCompanySlug } from '../../utils/companyUtils';
 
 interface CustomerSatisfactionViewProps {
   company: Company;
@@ -165,7 +166,8 @@ export const CustomerSatisfactionView: React.FC<CustomerSatisfactionViewProps> =
     const cleanName = customerName.trim() || 'New Customer';
     const cleanEmail = customerEmail.trim() || 'customer@example.com';
     const newId = `s-${Date.now()}`;
-    const generatedUrl = `https://onlinedesk.sheqstreet.co.za/survey/nk-cs-${Math.random().toString(36).substring(2, 7)}`;
+    const compSlug = getCompanySlug(company?.name);
+    const generatedUrl = `https://onlinedesk.sheqstreet.co.za/survey/${compSlug}-cs-${Math.random().toString(36).substring(2, 7)}`;
 
     let emailSentSuccess = false;
     let emailPreview: string | null = null;
@@ -210,14 +212,15 @@ export const CustomerSatisfactionView: React.FC<CustomerSatisfactionViewProps> =
 
   const handleResendSurveyEmail = async (survey: SurveyItem) => {
     try {
+      const compSlug = getCompanySlug(company?.name);
       const resp = await fetch('/api/send-survey-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerName: survey.name,
           customerEmail: survey.email,
-          surveyUrl: `https://onlinedesk.sheqstreet.co.za/survey/nk-cs-${survey.id}`,
-          companyName: company.name || 'nk',
+          surveyUrl: `https://onlinedesk.sheqstreet.co.za/survey/${compSlug}-cs-${survey.id}`,
+          companyName: company.name || 'Company',
         }),
       });
       const data = await resp.json();
@@ -380,7 +383,7 @@ export const CustomerSatisfactionView: React.FC<CustomerSatisfactionViewProps> =
         <div className="flex items-center gap-1.5">
           <FileText className="w-4 h-4 text-slate-400" />
           <span className="font-semibold text-slate-500">DOCUMENT #:</span>
-          <span className="font-bold text-slate-900">NK-DC-007</span>
+          <span className="font-bold text-slate-900">{getCompanyPrefix(company?.name)}-DC-007</span>
         </div>
         <div className="h-3 w-px bg-slate-200" />
         <div>
