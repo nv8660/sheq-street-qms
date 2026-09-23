@@ -151,6 +151,10 @@ export interface CalibrationInstrument {
   daysUntilDue: number;
   status: 'In Tolerance' | 'Due Soon' | 'Overdue';
   responsible: string;
+  provider?: string;
+  notes?: string;
+  certificateName?: string;
+  certificateUrl?: string;
 }
 
 export interface HRData {

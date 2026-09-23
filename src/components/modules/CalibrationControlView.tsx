@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Wrench,
   CheckCircle2,
@@ -11,6 +11,7 @@ import {
   X,
   FileText,
   History,
+  Upload,
 } from 'lucide-react';
 import { CalibrationInstrument, Company } from '../../types';
 
@@ -48,15 +49,58 @@ export const CalibrationControlView: React.FC<CalibrationControlViewProps> = ({ 
   const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [locationFilter, setLocationFilter] = useState('All Locations');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedInstrument, setSelectedInstrument] = useState<CalibrationInstrument | null>(null);
 
   const [formData, setFormData] = useState({
     instrumentId: '',
     description: '',
     serialNo: '',
-    location: 'Lab A',
-    interval: '12 Months',
-    responsible: 'Naveen V',
+    location: '',
+    responsible: '',
+    provider: '',
+    lastCalDate: '',
+    interval: '12 months',
+    status: 'In Tolerance' as 'In Tolerance' | 'Due Soon' | 'Overdue',
+    notes: '',
   });
+
+  const [certificateFile, setCertificateFile] = useState<{ name: string; size?: string; dataUrl?: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [responsibleOptions, setResponsibleOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const names = new Set<string>();
+      // 1. From HR employees
+      const hrKey = company?.id ? `sheq_${company.id}_hr_employees` : 'sheq_hr_employees';
+      const hrData = localStorage.getItem(hrKey) || localStorage.getItem('sheq_hr_employees');
+      if (hrData) {
+        const parsed = JSON.parse(hrData);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((emp: any) => {
+            if (emp.name) names.add(emp.name);
+          });
+        }
+      }
+      // 2. From existing instruments
+      instruments.forEach((inst) => {
+        if (inst.responsible && inst.responsible !== 'Unassigned' && inst.responsible !== '—') {
+          names.add(inst.responsible);
+        }
+      });
+      // 3. Defaults
+      if (names.size === 0) {
+        names.add('Naveen V');
+        names.add('Quality Manager');
+        names.add('Lead Metrology Technician');
+        names.add('Lab Supervisor');
+      }
+      setResponsibleOptions(Array.from(names));
+    } catch {
+      setResponsibleOptions(['Naveen V', 'Quality Manager', 'Lead Metrology Technician']);
+    }
+  }, [company?.id, instruments]);
 
   useEffect(() => {
     try {
@@ -67,31 +111,85 @@ export const CalibrationControlView: React.FC<CalibrationControlViewProps> = ({ 
     } catch {}
   }, [instruments, company?.id]);
 
-  const handleAdd = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newInst: CalibrationInstrument = {
-      id: Date.now().toString(),
-      instrumentId: formData.instrumentId || `CAL-INST-${instruments.length + 1}`,
-      description: formData.description || 'Digital Vernier Caliper 0-150mm',
-      serialNo: formData.serialNo || `SN-${Math.floor(100000 + Math.random() * 900000)}`,
-      location: formData.location,
-      lastCal: '15-Jan-2026',
-      interval: formData.interval,
-      nextDue: '15-Jan-2027',
-      daysUntilDue: 121,
-      status: 'In Tolerance',
-      responsible: formData.responsible,
-    };
-    setInstruments([...instruments, newInst]);
-    setIsModalOpen(false);
+  const resetForm = () => {
     setFormData({
       instrumentId: '',
       description: '',
       serialNo: '',
-      location: 'Lab A',
-      interval: '12 Months',
-      responsible: 'Naveen V',
+      location: '',
+      responsible: '',
+      provider: '',
+      lastCalDate: '',
+      interval: '12 months',
+      status: 'In Tolerance',
+      notes: '',
     });
+    setCertificateFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const sizeKb = (file.size / 1024).toFixed(1);
+      setCertificateFile({
+        name: file.name,
+        size: `${sizeKb} KB`,
+        dataUrl: event.target?.result as string,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.description.trim() || !formData.serialNo.trim()) {
+      alert('Please fill in required fields: Description and Serial Number.');
+      return;
+    }
+
+    const intervalMonths = parseInt(formData.interval, 10) || 12;
+    let baseDate = new Date();
+    if (formData.lastCalDate) {
+      const parsed = new Date(formData.lastCalDate);
+      if (!isNaN(parsed.getTime())) {
+        baseDate = parsed;
+      }
+    }
+
+    const nextDueDate = new Date(baseDate);
+    nextDueDate.setMonth(nextDueDate.getMonth() + intervalMonths);
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    const lastCalStr = `${pad(baseDate.getDate())}-${months[baseDate.getMonth()]}-${baseDate.getFullYear()}`;
+    const nextDueStr = `${pad(nextDueDate.getDate())}-${months[nextDueDate.getMonth()]}-${nextDueDate.getFullYear()}`;
+    const diffDays = Math.ceil((nextDueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+    const newInst: CalibrationInstrument = {
+      id: Date.now().toString(),
+      instrumentId: formData.instrumentId.trim() || `CAL-INST-${String(instruments.length + 1).padStart(3, '0')}`,
+      description: formData.description.trim(),
+      serialNo: formData.serialNo.trim(),
+      location: formData.location.trim() || 'General Lab',
+      lastCal: lastCalStr,
+      interval: formData.interval,
+      nextDue: nextDueStr,
+      daysUntilDue: diffDays,
+      status: formData.status,
+      responsible: formData.responsible || '—',
+      provider: formData.provider.trim(),
+      notes: formData.notes.trim(),
+      certificateName: certificateFile?.name,
+      certificateUrl: certificateFile?.dataUrl,
+    };
+
+    setInstruments([newInst, ...instruments]);
+    setIsModalOpen(false);
+    resetForm();
   };
 
   // Filtered lists
@@ -329,12 +427,23 @@ export const CalibrationControlView: React.FC<CalibrationControlViewProps> = ({ 
                         <td className="py-3 px-3 text-slate-600">{inst.nextDue}</td>
                         <td className="py-3 px-3 font-bold text-slate-900">{inst.daysUntilDue}</td>
                         <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[11px] font-bold border ${
+                              inst.status === 'In Tolerance'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                : inst.status === 'Due Soon'
+                                ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                : 'bg-red-50 text-red-700 border-red-300'
+                            }`}
+                          >
                             {inst.status}
                           </span>
                         </td>
                         <td className="py-3 px-3 text-slate-700">{inst.responsible}</td>
-                        <td className="py-3 px-3 text-center text-blue-600 font-medium cursor-pointer">
+                        <td
+                          onClick={() => setSelectedInstrument(inst)}
+                          className="py-3 px-3 text-center text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
+                        >
                           View
                         </td>
                       </tr>
@@ -390,7 +499,15 @@ export const CalibrationControlView: React.FC<CalibrationControlViewProps> = ({ 
                         <td className="py-3 px-3 text-slate-600">{inst.nextDue}</td>
                         <td className="py-3 px-3 font-bold text-amber-600">{inst.daysUntilDue}</td>
                         <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-300">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[11px] font-bold border ${
+                              inst.status === 'In Tolerance'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                : inst.status === 'Due Soon'
+                                ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                : 'bg-red-50 text-red-700 border-red-300'
+                            }`}
+                          >
                             {inst.status}
                           </span>
                         </td>
@@ -405,87 +522,370 @@ export const CalibrationControlView: React.FC<CalibrationControlViewProps> = ({ 
         </div>
       )}
 
-      {/* Add Instrument Modal */}
+      {/* Add New Instrument Modal (Exactly Matching Pinned Screenshot) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-lg text-slate-900">Add Instrument to Register</h3>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
+            {/* Dark Navy Header */}
+            <div className="bg-[#163255] text-white px-6 py-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white tracking-tight">Add New Instrument</h2>
               <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                type="button"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  resetForm();
+                }}
+                className="text-white/80 hover:text-white transition-colors cursor-pointer p-1 rounded-md hover:bg-white/10"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAdd} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Instrument ID
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. CAL-MIC-001"
-                  value={formData.instrumentId}
-                  onChange={(e) => setFormData({ ...formData, instrumentId: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Description
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Digital Vernier Caliper"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+            {/* Modal Body Form */}
+            <form onSubmit={handleAdd} className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                {/* Row 1 - Left: Instrument ID */}
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Serial No.
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Instrument ID
                   </label>
                   <input
                     type="text"
-                    placeholder="SN-1092"
-                    value={formData.serialNo}
-                    onChange={(e) => setFormData({ ...formData, serialNo: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.instrumentId}
+                    onChange={(e) => setFormData({ ...formData, instrumentId: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   />
                 </div>
+
+                {/* Row 1 - Right: Description * */}
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Location</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Description *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                </div>
+
+                {/* Row 2 - Left: Serial Number * */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Serial Number *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.serialNo}
+                    onChange={(e) => setFormData({ ...formData, serialNo: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                </div>
+
+                {/* Row 2 - Right: Location / Department */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Location / Department
+                  </label>
                   <input
                     type="text"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   />
+                </div>
+
+                {/* Row 3 - Left: Responsible Person */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Responsible Person
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.responsible}
+                      onChange={(e) => setFormData({ ...formData, responsible: e.target.value })}
+                      className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 bg-white appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer pr-9"
+                    >
+                      <option value="">— Select —</option>
+                      {responsibleOptions.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Row 3 - Right: Calibration Provider */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Calibration Provider
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.provider}
+                    onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                </div>
+
+                {/* Row 4 - Left: Last Calibration Date */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Last Calibration Date
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.lastCalDate}
+                    onChange={(e) => setFormData({ ...formData, lastCalDate: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer"
+                  />
+                </div>
+
+                {/* Row 4 - Right: Calibration Interval */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Calibration Interval
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.interval}
+                      onChange={(e) => setFormData({ ...formData, interval: e.target.value })}
+                      className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 bg-white appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer pr-9"
+                    >
+                      <option value="1 month">1 month</option>
+                      <option value="3 months">3 months</option>
+                      <option value="6 months">6 months</option>
+                      <option value="12 months">12 months</option>
+                      <option value="24 months">24 months</option>
+                      <option value="36 months">36 months</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Row 5 - Left: Status */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Status
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.status}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          status: e.target.value as 'In Tolerance' | 'Due Soon' | 'Overdue',
+                        })
+                      }
+                      className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 bg-white appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer pr-9"
+                    >
+                      <option value="In Tolerance">In Tolerance</option>
+                      <option value="Due Soon">Due Soon</option>
+                      <option value="Overdue">Overdue</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Row 5 - Right: Empty space to match image layout */}
+                <div className="hidden md:block"></div>
+
+                {/* Row 6 - Full width: Notes */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Notes
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                </div>
+
+                {/* Row 7 - Full width: Calibration Certificate (PDF / Image) */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Calibration Certificate (PDF / Image)
+                  </label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors cursor-pointer"
+                    >
+                      <Upload className="w-4 h-4 text-blue-600" />
+                      <span>Upload Certificate</span>
+                    </button>
+                    {certificateFile && (
+                      <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 border border-slate-200 rounded-md text-xs text-slate-700">
+                        <span className="truncate max-w-xs">
+                          {certificateFile.name} {certificateFile.size ? `(${certificateFile.size})` : ''}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCertificateFile(null);
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          }}
+                          className="text-slate-400 hover:text-red-500 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-3 mt-8 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    resetForm();
+                  }}
+                  className="px-5 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-800 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#2563eb] text-white rounded-lg font-semibold hover:bg-blue-700 cursor-pointer shadow-xs"
+                  className="px-5 py-2 bg-[#7096f8] hover:bg-[#5c85f0] text-white rounded-lg text-sm font-medium transition-colors shadow-xs cursor-pointer"
                 >
-                  Save Instrument
+                  Add Instrument
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Instrument Details Modal */}
+      {selectedInstrument && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="bg-[#163255] text-white px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-white tracking-tight">
+                  {selectedInstrument.description}
+                </h2>
+                <p className="text-xs text-blue-200 font-mono mt-0.5">
+                  {selectedInstrument.instrumentId} • Serial: {selectedInstrument.serialNo}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedInstrument(null)}
+                className="text-white/80 hover:text-white transition-colors cursor-pointer p-1 rounded-md hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200/80">
+                  <div className="text-slate-500 font-medium mb-1">Status</div>
+                  <span
+                    className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold border ${
+                      selectedInstrument.status === 'In Tolerance'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                        : selectedInstrument.status === 'Due Soon'
+                        ? 'bg-amber-50 text-amber-700 border-amber-300'
+                        : 'bg-red-50 text-red-700 border-red-300'
+                    }`}
+                  >
+                    {selectedInstrument.status}
+                  </span>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200/80">
+                  <div className="text-slate-500 font-medium mb-1">Days Until Due</div>
+                  <div className="text-sm font-bold text-slate-800">{selectedInstrument.daysUntilDue} days</div>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200/80">
+                  <div className="text-slate-500 font-medium mb-1">Location</div>
+                  <div className="text-sm font-semibold text-slate-800">{selectedInstrument.location}</div>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200/80">
+                  <div className="text-slate-500 font-medium mb-1">Responsible Person</div>
+                  <div className="text-sm font-semibold text-slate-800">{selectedInstrument.responsible}</div>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200/80">
+                  <div className="text-slate-500 font-medium mb-1">Last Calibration</div>
+                  <div className="text-sm font-semibold text-slate-800">{selectedInstrument.lastCal}</div>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200/80">
+                  <div className="text-slate-500 font-medium mb-1">Next Calibration Due</div>
+                  <div className="text-sm font-semibold text-slate-800">{selectedInstrument.nextDue}</div>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200/80">
+                  <div className="text-slate-500 font-medium mb-1">Calibration Interval</div>
+                  <div className="text-sm font-semibold text-slate-800">{selectedInstrument.interval}</div>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200/80">
+                  <div className="text-slate-500 font-medium mb-1">Calibration Provider</div>
+                  <div className="text-sm font-semibold text-slate-800">
+                    {selectedInstrument.provider || '—'}
+                  </div>
+                </div>
+              </div>
+
+              {selectedInstrument.notes && (
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200/80">
+                  <div className="text-slate-500 font-medium mb-1">Notes</div>
+                  <div className="text-sm text-slate-700">{selectedInstrument.notes}</div>
+                </div>
+              )}
+
+              {selectedInstrument.certificateName && (
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200/80 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-blue-900">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                    <span className="font-medium">{selectedInstrument.certificateName}</span>
+                  </div>
+                  {selectedInstrument.certificateUrl && (
+                    <a
+                      href={selectedInstrument.certificateUrl}
+                      download={selectedInstrument.certificateName}
+                      className="px-3 py-1 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-700 cursor-pointer"
+                    >
+                      Download
+                    </a>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedInstrument(null)}
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
