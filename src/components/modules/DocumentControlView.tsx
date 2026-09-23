@@ -25,7 +25,6 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Company } from '../../types';
-import { getCompanyPrefix, formatDocNumber } from '../../utils/companyUtils';
 
 export interface DocumentItem {
   id: string;
@@ -435,14 +434,14 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
   };
 
   const getAutoDocNumber = () => {
-    const prefix = getCompanyPrefix(company?.name);
+    const prefix = company?.name ? company.name.substring(0, 2).toUpperCase() : 'NK';
     return `${prefix}-DC-019`;
   };
 
   // New Document Form - Matching Pinned Image
   const [newDoc, setNewDoc] = useState({
     title: '',
-    docNumber: getAutoDocNumber(),
+    docNumber: 'NK-DC-019',
     isCustomDocNumber: false,
     category: 'Policy' as DocumentItem['category'],
     status: 'Draft' as DocumentItem['status'],
@@ -891,7 +890,7 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
                       <tr key={proc.id} className="hover:bg-slate-50/60 transition-colors">
                         <td className="py-3 px-4 font-semibold text-slate-500 text-xs">{idx + 1}</td>
                         <td className="py-3 px-4 font-mono font-bold text-blue-700 text-xs">
-                          {formatDocNumber(proc.docNumber, company?.name)}
+                          {proc.docNumber}
                         </td>
                         <td className="py-3 px-4 font-medium text-slate-900">{proc.title}</td>
                         <td className="py-3 px-4 text-xs font-mono text-slate-600">{proc.clause}</td>
@@ -1053,7 +1052,7 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
                       <tr key={doc.id} className="hover:bg-slate-50/60 transition-colors">
                         <td className="py-3 px-4 font-semibold text-slate-500 text-xs">{idx + 1}</td>
                         <td className="py-3 px-4 font-mono font-bold text-slate-900 text-xs">
-                          {formatDocNumber(doc.docNumber, company?.name)}
+                          {doc.docNumber}
                         </td>
                         <td className="py-3 px-4">
                           <button
@@ -1425,7 +1424,7 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-mono font-bold text-sm text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
-                    {formatDocNumber(previewDoc.docNumber, company?.name)}
+                    {previewDoc.docNumber}
                   </span>
                   <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
                     {previewDoc.category}

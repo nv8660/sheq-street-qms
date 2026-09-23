@@ -26,7 +26,6 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { Company, SupplierItem } from '../../types';
-import { getCompanyPrefix } from '../../utils/companyUtils';
 
 interface SupplierManagementViewProps {
   company: Company;
@@ -659,7 +658,7 @@ Swiftline Cross-Border Haulage, Gate 8 City Deep Terminal Johannesburg, Logistic
           <div className="bg-slate-50/80 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-600 flex items-center gap-2 shadow-2xs">
             <FileText className="w-4 h-4 text-slate-400" />
             <span className="font-semibold text-slate-500">DOCUMENT #:</span>
-            <span className="font-bold text-slate-900">{getCompanyPrefix(company?.name)}-DC-009</span>
+            <span className="font-bold text-slate-900">NK-DC-009</span>
           </div>
 
           {/* Search, Year, Weighted Summary & Refresh */}

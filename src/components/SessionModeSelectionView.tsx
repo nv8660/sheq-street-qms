@@ -55,9 +55,6 @@ export const SessionModeSelectionView: React.FC<SessionModeSelectionViewProps> =
           <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
             Welcome to SHEQ Street
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Active Workspace: <span className="text-blue-400 font-bold">{company?.name || 'nk'}</span>
-          </p>
         </div>
 
         {/* Tutorial Centre Banner Card (Matches Screenshot 1) */}

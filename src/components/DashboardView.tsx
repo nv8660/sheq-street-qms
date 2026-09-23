@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { NavigationTab, Company } from '../types';
 import { AddCompanyModal } from './AddCompanyModal';
-import { getCompanyPrefix } from '../utils/companyUtils';
 
 interface DashboardViewProps {
   company: Company;
@@ -358,7 +357,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <span className="text-sm font-medium text-slate-600">Overall Score</span>
             </div>
             <div className="text-xs text-slate-500 mt-2">
-              Target: 80% • Document #: {getCompanyPrefix(company?.name)}-DC-012
+              Target: 80% • Document #: NK-DC-012
             </div>
           </div>
 

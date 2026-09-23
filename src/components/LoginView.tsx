@@ -102,17 +102,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, defaultEmail = ''
     return () => clearTimeout(timer);
   }, [signupLinkSent, signup]);
 
-  const getSavedCompanyName = (): string => {
-    try {
-      const saved = localStorage.getItem('sheq_company');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.name) return parsed.name;
-      }
-    } catch {}
-    return 'nk';
-  };
-
   const handleCompleteSignIn = (loginEmail: string, userName?: string, compName?: string) => {
     const trimmed = (loginEmail || '').trim();
     if (!trimmed || !trimmed.includes('@')) {
@@ -120,13 +109,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, defaultEmail = ''
       return;
     }
     const derivedName = userName || (trimmed.toLowerCase().includes('naveen') ? 'NAVEEN .V' : trimmed.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
-    const activeCompName = compName || getSavedCompanyName();
     onLogin({
       id: `usr-${Date.now()}`,
       name: derivedName,
       email: trimmed,
       role: 'SHEQ Quality Lead / ISO 9001 Lead Auditor',
-      companyName: activeCompName,
+      companyName: compName || 'nk',
     });
   };
 
@@ -140,7 +128,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, defaultEmail = ''
       setIsSubmitting(true);
       setTimeout(() => {
         setIsSubmitting(false);
-        handleCompleteSignIn(cred.email, cred.name);
+        handleCompleteSignIn(cred.email, cred.name, 'nk');
       }, 300);
     }
   };

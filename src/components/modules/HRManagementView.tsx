@@ -21,7 +21,6 @@ import {
   Upload,
 } from 'lucide-react';
 import { HRData, Company } from '../../types';
-import { getCompanyPrefix } from '../../utils/companyUtils';
 
 interface HRManagementViewProps {
   company: Company;
@@ -475,7 +474,7 @@ export const HRManagementView: React.FC<HRManagementViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-600 flex items-center gap-2 shadow-xs">
             <FileText className="w-4 h-4 text-slate-400" />
             <span className="font-semibold text-slate-500">DOCUMENT #:</span>
-            <span className="font-bold text-slate-900">{getCompanyPrefix(company?.name)}-DC-015</span>
+            <span className="font-bold text-slate-900">NK-DC-015</span>
           </div>
 
           {/* 3 Metric Cards */}
@@ -575,7 +574,7 @@ export const HRManagementView: React.FC<HRManagementViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-600 flex items-center gap-2 shadow-xs">
             <FileText className="w-4 h-4 text-slate-400" />
             <span className="font-semibold text-slate-500">DOCUMENT #:</span>
-            <span className="font-bold text-slate-900">{getCompanyPrefix(company?.name)}-DC-015</span>
+            <span className="font-bold text-slate-900">NK-DC-015</span>
           </div>
 
           {/* Toolbar Matching 2nd Pinned Image */}
@@ -695,7 +694,7 @@ export const HRManagementView: React.FC<HRManagementViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-600 flex items-center gap-2 shadow-xs">
             <FileText className="w-4 h-4 text-slate-400" />
             <span className="font-semibold text-slate-500">DOCUMENT #:</span>
-            <span className="font-bold text-slate-900">{getCompanyPrefix(company?.name)}-DC-015</span>
+            <span className="font-bold text-slate-900">NK-DC-015</span>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-8">
@@ -792,7 +791,7 @@ export const HRManagementView: React.FC<HRManagementViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-600 flex items-center gap-2 shadow-xs">
             <FileText className="w-4 h-4 text-slate-400" />
             <span className="font-semibold text-slate-500">DOCUMENT #:</span>
-            <span className="font-bold text-slate-900">{getCompanyPrefix(company?.name)}-DC-015</span>
+            <span className="font-bold text-slate-900">NK-DC-015</span>
           </div>
 
           {/* Toolbar Matching 3rd Pinned Image */}

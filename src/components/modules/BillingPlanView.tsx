@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   CreditCard,
   Check,
@@ -129,21 +129,6 @@ export const BillingPlanView: React.FC<BillingPlanViewProps> = ({
   const [country, setCountry] = useState<string>('South Africa');
   const [includeTax, setIncludeTax] = useState<boolean>(true);
   const [agreeTerms, setAgreeTerms] = useState<boolean>(true);
-
-  // Synchronize billing fields whenever company prop changes
-  useEffect(() => {
-    if (company?.name) {
-      setCompanyLegalName(company.name);
-      setPayerAccountHolder(company.name);
-    }
-    if (company?.email) {
-      setBillingEmail(company.email);
-      setRemittanceEmail(company.email);
-    }
-    if (company?.address) {
-      setAddressLine(company.address);
-    }
-  }, [company]);
 
   // Processing & UI state
   const [isProcessing, setIsProcessing] = useState<boolean>(false);

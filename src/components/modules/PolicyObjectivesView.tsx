@@ -47,8 +47,6 @@ interface PolicyObjectivesViewProps {
   company: Company;
 }
 
-import { getCompanyPrefix } from '../../utils/companyUtils';
-
 interface ManualSection {
   id: number;
   title: string;
@@ -56,111 +54,9 @@ interface ManualSection {
   lastUpdated: string;
 }
 
-const getManualSections = (compName: string): ManualSection[] => [
-  {
-    id: 1,
-    title: 'Scope of the Quality Management System',
-    content: `${compName} operates a comprehensive Quality Management System in conformity with ISO 9001:2015. The scope covers the collection, optical processing, formulation, extrusion, inspection, and distribution of engineered polymer materials and related client support operations at our registered facilities without exclusions.`,
-    lastUpdated: '16-Sept-2026',
-  },
-  {
-    id: 2,
-    title: 'Normative References',
-    content: `The following referenced normative standards apply directly to the design and execution of ${compName}'s QMS:\n• ISO 9001:2015 — Quality Management Systems — Requirements\n• ISO 9000:2015 — Fundamentals and Vocabulary\n• ISO 19011:2018 — Guidelines for Auditing Management Systems\n• SANS National Standards & Occupational Health & Safety Act (Act 85 of 1993).`,
-    lastUpdated: '16-Sept-2026',
-  },
-  {
-    id: 3,
-    title: 'Terms and Definitions',
-    content: `Key terminology adopted within this manual:\n• QMS: Quality Management System\n• NCR: Non-Conformance Report recording deviation from specifications\n• COTO: Context of the Organisation (Clause 4)\n• QCP: Quality Control Plan specifying inspection gates & critical limits\n• OFI: Opportunity for Improvement documented during audits.`,
-    lastUpdated: '16-Sept-2026',
-  },
-  {
-    id: 4,
-    title: 'Context of the Organisation',
-    content: `${compName} monitors internal and external strategic issues influencing our quality outcomes. Key factors include statutory regulatory compliance, energy efficiency in extrusion processing, supplier dependability, and customer technical requirements. The stakeholder matrix is audited quarterly.`,
-    lastUpdated: '16-Sept-2026',
-  },
-  {
-    id: 5,
-    title: 'Leadership',
-    content: `Top Management of ${compName} demonstrates leadership and accountability by establishing the Quality Policy, ensuring QMS integration into business strategy, facilitating a culture of customer satisfaction, and appointing competent personnel for QMS governance.`,
-    lastUpdated: '16-Sept-2026',
-  },
-  {
-    id: 6,
-    title: 'Planning',
-    content: `Action planning incorporates risk assessments (Clause 6.1) and measurable quality objectives (Clause 6.2). Objectives are maintained with defined metric targets, departmental owners, and scheduled review milestones.`,
-    lastUpdated: '16-Sept-2026',
-  },
-  {
-    id: 7,
-    title: 'Support',
-    content: `${compName} provides necessary resources including certified test instrumentation (Calibration Control), clean infrastructure, documented procedures, competent personnel, and an internal QMS communications network.`,
-    lastUpdated: '16-Sept-2026',
-  },
-  {
-    id: 8,
-    title: 'Operation',
-    content: `Operational planning controls manufacturing flowcharts, incoming raw material inspections, production parameter monitoring, and final batch Certificate of Analysis (CoA) verification prior to customer delivery dispatch.`,
-    lastUpdated: '16-Sept-2026',
-  },
-  {
-    id: 9,
-    title: 'Performance Evaluation',
-    content: `Systematic evaluation comprises calibrated test measurements, scheduled internal process audits across all 12 calendar months, customer satisfaction surveys, and annual executive Management Review meetings.`,
-    lastUpdated: '16-Sept-2026',
-  },
-  {
-    id: 10,
-    title: 'Improvement',
-    content: `${compName} actively implements corrective actions for all recorded NCRs, eliminates recurring root causes via 5-Why analysis, and continually upgrades operational standards to exceed client expectations.`,
-    lastUpdated: '16-Sept-2026',
-  },
-];
-
-const getDefaultPolicies = (compName: string): PolicyItem[] => {
-  const prefix = getCompanyPrefix(compName);
-  return [
-    {
-      id: 'pol-1',
-      title: 'Quality Policy Statement',
-      category: 'QUALITY',
-      status: 'DRAFT',
-      documentNumber: `${prefix}-POL-001`,
-      content:
-        `Top Management of ${compName} is committed to consistently satisfying customer requirements, adhering to ISO 9001:2015 requirements, and driving continual improvement of the Quality Management System through structured auditing and objective tracking.`,
-      dateCreated: '16 Sep 2026',
-    },
-    {
-      id: 'pol-2',
-      title: 'Occupational Health & Safety Policy',
-      category: 'SAFETY',
-      status: 'APPROVED',
-      documentNumber: `${prefix}-POL-002`,
-      content:
-        `${compName} prioritizes zero-harm workplace environments by preventing injury, reducing occupational health hazards, and consulting employees across all operations.`,
-      dateCreated: '12 Sep 2026',
-    },
-    {
-      id: 'pol-3',
-      title: 'Environmental & Sustainability Policy Statement',
-      category: 'ENVIRONMENT',
-      status: 'ACTIVE',
-      documentNumber: `${prefix}-POL-003`,
-      content:
-        `${compName} is committed to minimizing emissions, promoting closed-loop recycling processes, and complying with all South African environmental legislation.`,
-      dateCreated: '08 Sep 2026',
-    },
-  ];
-};
-
 export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ company }) => {
-  const companyName = company?.name || 'Company';
-  const companyPrefix = getCompanyPrefix(companyName);
-
   const [activeTab, setActiveTab] = useState<string>('policies');
-  const [policies, setPolicies] = useState<PolicyItem[]>(() => getDefaultPolicies(companyName));
+  const [policies, setPolicies] = useState<PolicyItem[]>(initialPolicies);
   const [objectives, setObjectives] = useState<ObjectiveItem[]>(initialObjectives);
   const [stakeholders, setStakeholders] = useState<StakeholderIssue[]>(initialStakeholders);
   const [risks, setRisks] = useState<RiskItem[]>(initialRisks);
@@ -177,40 +73,75 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
   const [showEditDocDetails, setShowEditDocDetails] = useState<boolean>(false);
 
   const [docControl, setDocControl] = useState({
-    docNumber: `${companyPrefix}-DC-003`,
+    docNumber: `${company.name ? company.name.toUpperCase().slice(0, 4) : 'NK'}-DC-003`,
     revision: '01 · 16-Sept-2026',
     status: 'DRAFT',
     preparedBy: '—',
     approvedBy: '—',
   });
 
-  const [manualSections, setManualSections] = useState<ManualSection[]>(() =>
-    getManualSections(companyName)
-  );
-
-  // Synchronize manual sections, document numbers, and policies whenever company name changes
-  React.useEffect(() => {
-    const currentName = company?.name || 'Company';
-    const prefix = getCompanyPrefix(currentName);
-
-    setDocControl((prev) => ({
-      ...prev,
-      docNumber: `${prefix}-DC-003`,
-    }));
-
-    setManualSections(getManualSections(currentName));
-
-    setPolicies((prev) => {
-      if (!prev || prev.length === 0) return getDefaultPolicies(currentName);
-      return prev.map((p) => {
-        if (p.id === 'pol-1' || p.id === 'pol-2' || p.id === 'pol-3') {
-          const fresh = getDefaultPolicies(currentName).find((dp) => dp.id === p.id);
-          return fresh || p;
-        }
-        return p;
-      });
-    });
-  }, [company?.name]);
+  const [manualSections, setManualSections] = useState<ManualSection[]>([
+    {
+      id: 1,
+      title: 'Scope of the Quality Management System',
+      content: `${company.name} operates a comprehensive Quality Management System in conformity with ISO 9001:2015. The scope covers the collection, optical processing, formulation, extrusion, inspection, and distribution of engineered polymer materials and related client support operations at our registered facilities without exclusions.`,
+      lastUpdated: '16-Sept-2026',
+    },
+    {
+      id: 2,
+      title: 'Normative References',
+      content: `The following referenced normative standards apply directly to the design and execution of ${company.name}'s QMS:\n• ISO 9001:2015 — Quality Management Systems — Requirements\n• ISO 9000:2015 — Fundamentals and Vocabulary\n• ISO 19011:2018 — Guidelines for Auditing Management Systems\n• SANS National Standards & Occupational Health & Safety Act (Act 85 of 1993).`,
+      lastUpdated: '16-Sept-2026',
+    },
+    {
+      id: 3,
+      title: 'Terms and Definitions',
+      content: `Key terminology adopted within this manual:\n• QMS: Quality Management System\n• NCR: Non-Conformance Report recording deviation from specifications\n• COTO: Context of the Organisation (Clause 4)\n• QCP: Quality Control Plan specifying inspection gates & critical limits\n• OFI: Opportunity for Improvement documented during audits.`,
+      lastUpdated: '16-Sept-2026',
+    },
+    {
+      id: 4,
+      title: 'Context of the Organisation',
+      content: `${company.name} monitors internal and external strategic issues influencing our quality outcomes. Key factors include statutory regulatory compliance, energy efficiency in extrusion processing, supplier dependability, and customer technical requirements. The stakeholder matrix is audited quarterly.`,
+      lastUpdated: '16-Sept-2026',
+    },
+    {
+      id: 5,
+      title: 'Leadership',
+      content: `Top Management of ${company.name} demonstrates leadership and accountability by establishing the Quality Policy, ensuring QMS integration into business strategy, facilitating a culture of customer satisfaction, and appointing competent personnel for QMS governance.`,
+      lastUpdated: '16-Sept-2026',
+    },
+    {
+      id: 6,
+      title: 'Planning',
+      content: `Action planning incorporates risk assessments (Clause 6.1) and measurable quality objectives (Clause 6.2). Objectives are maintained with defined metric targets, departmental owners, and scheduled review milestones.`,
+      lastUpdated: '16-Sept-2026',
+    },
+    {
+      id: 7,
+      title: 'Support',
+      content: `${company.name} provides necessary resources including certified test instrumentation (Calibration Control), clean infrastructure, documented procedures, competent personnel, and an internal QMS communications network.`,
+      lastUpdated: '16-Sept-2026',
+    },
+    {
+      id: 8,
+      title: 'Operation',
+      content: `Operational planning controls manufacturing flowcharts, incoming raw material inspections, production parameter monitoring, and final batch Certificate of Analysis (CoA) verification prior to customer delivery dispatch.`,
+      lastUpdated: '16-Sept-2026',
+    },
+    {
+      id: 9,
+      title: 'Performance Evaluation',
+      content: `Systematic evaluation comprises calibrated test measurements, scheduled internal process audits across all 12 calendar months, customer satisfaction surveys, and annual executive Management Review meetings.`,
+      lastUpdated: '16-Sept-2026',
+    },
+    {
+      id: 10,
+      title: 'Improvement',
+      content: `${company.name} actively implements corrective actions for all recorded NCRs, eliminates recurring root causes via 5-Why analysis, and continually upgrades operational standards to exceed client expectations.`,
+      lastUpdated: '16-Sept-2026',
+    },
+  ]);
 
   // Modals state
   const [showNewModal, setShowNewModal] = useState(false);
