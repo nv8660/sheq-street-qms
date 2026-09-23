@@ -185,21 +185,35 @@ export const NCRManagementView: React.FC<NCRManagementViewProps> = ({
     });
   };
 
+  const openNCRs = ncrs.filter((n) => n.status !== 'CLOSED');
+  const openNCRsCount = openNCRs.length;
+  const closestDays = openNCRs
+    .filter((n) => n.daysLeft !== undefined)
+    .sort((a, b) => (a.daysLeft ?? 99) - (b.daysLeft ?? 99))[0]?.daysLeft;
+  const closestDueText = closestDays !== undefined ? `${closestDays} days` : '—';
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-200">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-        <span className="text-slate-600 font-semibold">{company.name}</span>
-        <span className="px-1.5 py-0.5 rounded border border-amber-300/80 bg-amber-50 text-amber-700 text-[10px] font-bold tracking-wider">
-          TRIAL
-        </span>
+      <div className="flex items-center justify-between gap-2 text-xs font-medium text-slate-500">
+        <div className="flex items-center gap-2">
+          <span className="text-slate-700 font-bold">{company.name}</span>
+          <span className="px-1.5 py-0.5 rounded border border-blue-300 bg-blue-50 text-blue-700 text-[10px] font-bold tracking-wider uppercase">
+            {company.plan || 'ACTIVE'}
+          </span>
+          {company.registrationNumber && (
+            <span className="hidden sm:inline-block font-mono text-slate-400">
+              • Reg: {company.registrationNumber}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Title */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">NCR Management</h1>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{company.name} — NCR Management</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Non-Conformance Reports register and workflow.
+          Non-Conformance Reports register and corrective action workflow for {company.name}.
         </p>
       </div>
 
@@ -217,7 +231,7 @@ export const NCRManagementView: React.FC<NCRManagementViewProps> = ({
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-3xl font-extrabold text-slate-900">4</div>
+            <div className="text-3xl font-extrabold text-slate-900">{openNCRsCount}</div>
             <div className="text-xs font-medium text-slate-500">Open NCRs</div>
           </div>
         </div>
@@ -227,7 +241,7 @@ export const NCRManagementView: React.FC<NCRManagementViewProps> = ({
             <Clock className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-3xl font-extrabold text-slate-900">9 days</div>
+            <div className="text-3xl font-extrabold text-slate-900">{closestDueText}</div>
             <div className="text-xs font-medium text-slate-500">Days to Closest Due Date</div>
           </div>
         </div>

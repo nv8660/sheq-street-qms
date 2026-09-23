@@ -328,19 +328,26 @@ export const CustomerSatisfactionView: React.FC<CustomerSatisfactionViewProps> =
       )}
 
       {/* Top Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-        <span className="text-slate-600 font-semibold">{company.name}</span>
-        <span className="px-1.5 py-0.5 rounded border border-amber-300/80 bg-amber-50 text-amber-700 text-[10px] font-bold tracking-wider">
-          TRIAL
-        </span>
+      <div className="flex items-center justify-between gap-2 text-xs font-medium text-slate-500">
+        <div className="flex items-center gap-2">
+          <span className="text-slate-700 font-bold">{company.name}</span>
+          <span className="px-1.5 py-0.5 rounded border border-blue-300 bg-blue-50 text-blue-700 text-[10px] font-bold tracking-wider uppercase">
+            {company.plan || 'ACTIVE'}
+          </span>
+          {company.registrationNumber && (
+            <span className="hidden sm:inline-block font-mono text-slate-400">
+              • Reg: {company.registrationNumber}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Header and Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Customer Satisfaction</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{company.name} — Customer Satisfaction</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Track customer feedback, ISO 9001 Clause 9.1.2 compliance, and live satisfaction ratings.
+            Track customer feedback, ISO 9001 Clause 9.1.2 compliance, and live satisfaction ratings for {company.name}.
           </p>
         </div>
 
@@ -380,7 +387,9 @@ export const CustomerSatisfactionView: React.FC<CustomerSatisfactionViewProps> =
         <div className="flex items-center gap-1.5">
           <FileText className="w-4 h-4 text-slate-400" />
           <span className="font-semibold text-slate-500">DOCUMENT #:</span>
-          <span className="font-bold text-slate-900">NK-DC-007</span>
+          <span className="font-bold text-slate-900">
+            {company.name ? company.name.slice(0, 4).toUpperCase().replace(/[^A-Z0-9]/g, '') : 'NK'}-DC-007
+          </span>
         </div>
         <div className="h-3 w-px bg-slate-200" />
         <div>

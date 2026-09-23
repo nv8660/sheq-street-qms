@@ -66,11 +66,13 @@ export const ProcessControlView: React.FC<ProcessControlViewProps> = ({
   const [qcpSpec, setQcpSpec] = useState('');
   const [qcpFreq, setQcpFreq] = useState('');
 
+  const compPrefix = company?.name ? company.name.split(' ').map((w) => w[0]).join('').slice(0, 3).toUpperCase() : 'NK';
+
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
 
-    const docNum = formData.documentNumber.trim() || `QCP-00${processes.length + 1}`;
+    const docNum = formData.documentNumber.trim() || `${compPrefix}-QCP-00${processes.length + 1}`;
 
     const newProc: ProcessControlItem = {
       id: `proc-${Date.now()}`,
@@ -206,17 +208,30 @@ export const ProcessControlView: React.FC<ProcessControlViewProps> = ({
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-200">
       {/* Top Breadcrumb matching Screenshot 5 */}
-      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-        <span className="text-slate-600 font-semibold">{company.name}</span>
+      <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
+        <span className="text-slate-700 font-semibold">{company.name}</span>
         <span className="px-1.5 py-0.5 rounded border border-amber-300/80 bg-amber-50 text-amber-700 text-[10px] font-bold tracking-wider">
-          TRIAL
+          {company.plan || 'TRIAL'}
         </span>
+        {company.isoScope && company.isoScope.length > 0 && (
+          <span className="hidden sm:inline-flex items-center gap-1.5">
+            <span className="text-slate-300">•</span>
+            {company.isoScope.map((scope) => (
+              <span
+                key={scope}
+                className="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200"
+              >
+                {scope}
+              </span>
+            ))}
+          </span>
+        )}
       </div>
 
       {/* Header and Add Button matching Screenshot 5 */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Process Control</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{company.name} — Process Control</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Manage process maps and quality control plans for all company processes
           </p>

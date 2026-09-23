@@ -143,6 +143,36 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
     },
   ]);
 
+  // Synchronize Quality Manual and Document Control when company profile changes
+  React.useEffect(() => {
+    if (!company) return;
+    const compPrefix = company.name ? company.name.toUpperCase().slice(0, 4).replace(/[^A-Z0-9]/g, '') : 'NK';
+    setDocControl((prev) => ({
+      ...prev,
+      docNumber: `${compPrefix}-DC-003`,
+    }));
+
+    setManualSections((prev) =>
+      prev.map((sec) => {
+        let updatedContent = sec.content;
+        if (sec.id === 1) {
+          updatedContent = `${company.name} operates a comprehensive Quality Management System in conformity with ISO 9001:2015. The operational scope covers ${company.industry || 'engineered product manufacturing, processing, and distribution'} and related client support operations at our registered facilities without exclusions.`;
+        } else if (sec.id === 2) {
+          updatedContent = `The following referenced normative standards apply directly to the design and execution of ${company.name}'s QMS:\n• ISO 9001:2015 — Quality Management Systems — Requirements\n• ISO 9000:2015 — Fundamentals and Vocabulary\n• ISO 19011:2018 — Guidelines for Auditing Management Systems\n• SANS National Standards & Occupational Health & Safety Act (Act 85 of 1993).`;
+        } else if (sec.id === 4) {
+          updatedContent = `${company.name} monitors internal and external strategic issues influencing our quality outcomes. Key factors include statutory regulatory compliance, operational efficiency, supplier dependability, and customer technical requirements. The stakeholder matrix is audited quarterly.`;
+        } else if (sec.id === 5) {
+          updatedContent = `Top Management of ${company.name} demonstrates leadership and accountability by establishing the Quality Policy, ensuring QMS integration into business strategy, facilitating a culture of customer satisfaction, and appointing competent personnel for QMS governance.`;
+        } else if (sec.id === 7) {
+          updatedContent = `${company.name} provides necessary resources including certified test instrumentation (Calibration Control), clean infrastructure, documented procedures, competent personnel, and an internal QMS communications network.`;
+        } else if (sec.id === 10) {
+          updatedContent = `${company.name} actively implements corrective actions for all recorded NCRs, eliminates recurring root causes via 5-Why analysis, and continually upgrades operational standards to exceed client expectations.`;
+        }
+        return { ...sec, content: updatedContent };
+      })
+    );
+  }, [company]);
+
   // Modals state
   const [showNewModal, setShowNewModal] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<PolicyItem | null>(null);

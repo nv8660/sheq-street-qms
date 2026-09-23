@@ -387,6 +387,8 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
   // Procedures State
   const [procedures, setProcedures] = useState<ProcedureItem[]>(() => {
     try {
+      const savedScoped = localStorage.getItem(`sheq_${company?.id}_controlled_procedures`);
+      if (savedScoped) return JSON.parse(savedScoped);
       const saved = localStorage.getItem('sheq_controlled_procedures');
       if (saved) return JSON.parse(saved);
     } catch {}
@@ -396,6 +398,8 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
   // Documents State (Initial 24 documents matching screenshot)
   const [documents, setDocuments] = useState<DocumentItem[]>(() => {
     try {
+      const savedScoped = localStorage.getItem(`sheq_${company?.id}_controlled_documents_v2`);
+      if (savedScoped) return JSON.parse(savedScoped);
       const saved = localStorage.getItem('sheq_controlled_documents_v2');
       if (saved) return JSON.parse(saved);
       const legacy = localStorage.getItem('sheq_controlled_documents');
@@ -406,6 +410,46 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
     } catch {}
     return initialDocumentsList;
   });
+
+  // Sync state on company change
+  useEffect(() => {
+    try {
+      const savedScopedProc = localStorage.getItem(`sheq_${company.id}_controlled_procedures`);
+      if (savedScopedProc) {
+        setProcedures(JSON.parse(savedScopedProc));
+      } else {
+        const saved = localStorage.getItem('sheq_controlled_procedures');
+        setProcedures(saved ? JSON.parse(saved) : initialProceduresList);
+      }
+
+      const savedScopedDoc = localStorage.getItem(`sheq_${company.id}_controlled_documents_v2`);
+      if (savedScopedDoc) {
+        setDocuments(JSON.parse(savedScopedDoc));
+      } else {
+        const saved = localStorage.getItem('sheq_controlled_documents_v2');
+        setDocuments(saved ? JSON.parse(saved) : initialDocumentsList);
+      }
+    } catch {}
+  }, [company.id]);
+
+  // Persist to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('sheq_controlled_procedures', JSON.stringify(procedures));
+      if (company?.id) {
+        localStorage.setItem(`sheq_${company.id}_controlled_procedures`, JSON.stringify(procedures));
+      }
+    } catch {}
+  }, [procedures, company?.id]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('sheq_controlled_documents_v2', JSON.stringify(documents));
+      if (company?.id) {
+        localStorage.setItem(`sheq_${company.id}_controlled_documents_v2`, JSON.stringify(documents));
+      }
+    } catch {}
+  }, [documents, company?.id]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
@@ -441,7 +485,7 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
   // New Document Form - Matching Pinned Image
   const [newDoc, setNewDoc] = useState({
     title: '',
-    docNumber: 'NK-DC-019',
+    docNumber: getAutoDocNumber(),
     isCustomDocNumber: false,
     category: 'Policy' as DocumentItem['category'],
     status: 'Draft' as DocumentItem['status'],
@@ -722,16 +766,29 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-200">
       {/* Top Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-        <span className="text-slate-600 font-semibold">{company?.name || 'nk'}</span>
+      <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
+        <span className="text-slate-700 font-semibold">{company?.name || 'Company'}</span>
         <span className="px-1.5 py-0.5 rounded border border-amber-300/80 bg-amber-50 text-amber-700 text-[10px] font-bold tracking-wider">
-          TRIAL
+          {company?.plan || 'TRIAL'}
         </span>
+        {company?.isoScope && company.isoScope.length > 0 && (
+          <span className="hidden sm:inline-flex items-center gap-1.5">
+            <span className="text-slate-300">•</span>
+            {company.isoScope.map((scope) => (
+              <span
+                key={scope}
+                className="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200"
+              >
+                {scope}
+              </span>
+            ))}
+          </span>
+        )}
       </div>
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Document Control (ISO 9001:2015 Clause 7.5)</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{company?.name || 'Company'} — Document Control (ISO 9001:2015 Clause 7.5)</h1>
         <p className="text-sm text-slate-500 mt-0.5">
           Master Document Register, versioning, procedures, approvals, and controlled distribution.
         </p>
@@ -790,7 +847,7 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
           <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-600 flex items-center gap-2 shadow-xs">
             <FileText className="w-4 h-4 text-slate-400" />
             <span className="font-semibold text-slate-500">DOCUMENT #:</span>
-            <span className="font-bold text-slate-900">NK-DC-002</span>
+            <span className="font-bold text-slate-900">{company?.name ? company.name.substring(0, 2).toUpperCase() : 'NK'}-DC-002</span>
           </div>
 
           {/* Procedures Metric Cards */}

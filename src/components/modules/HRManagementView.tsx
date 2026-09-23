@@ -90,11 +90,15 @@ export const HRManagementView: React.FC<HRManagementViewProps> = ({
   // Toast notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  const compPrefix = company?.name ? company.name.split(' ').map((w) => w[0]).join('').slice(0, 3).toUpperCase() : 'NK';
+
   // Employees Tab States (matching Image 2)
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [employeeSort, setEmployeeSort] = useState('Highest to Lowest Rank');
   const [employees, setEmployees] = useState<EmployeeItem[]>(() => {
     try {
+      const savedScoped = localStorage.getItem(`sheq_${company?.id}_hr_employees`);
+      if (savedScoped) return JSON.parse(savedScoped);
       const saved = localStorage.getItem('sheq_hr_employees');
       if (saved) return JSON.parse(saved);
     } catch {}
@@ -123,11 +127,35 @@ export const HRManagementView: React.FC<HRManagementViewProps> = ({
   const [trainingSearch, setTrainingSearch] = useState('');
   const [trainingRecords, setTrainingRecords] = useState<TrainingRecordItem[]>(() => {
     try {
+      const savedScoped = localStorage.getItem(`sheq_${company?.id}_hr_training`);
+      if (savedScoped) return JSON.parse(savedScoped);
       const saved = localStorage.getItem('sheq_hr_training');
       if (saved) return JSON.parse(saved);
     } catch {}
     return []; // Starts empty to match Image 3
   });
+
+  // Reload when company changes
+  useEffect(() => {
+    try {
+      const savedScopedEmp = localStorage.getItem(`sheq_${company.id}_hr_employees`);
+      if (savedScopedEmp) {
+        setEmployees(JSON.parse(savedScopedEmp));
+      } else {
+        const savedEmp = localStorage.getItem('sheq_hr_employees');
+        setEmployees(savedEmp ? JSON.parse(savedEmp) : []);
+      }
+
+      const savedScopedTrn = localStorage.getItem(`sheq_${company.id}_hr_training`);
+      if (savedScopedTrn) {
+        setTrainingRecords(JSON.parse(savedScopedTrn));
+      } else {
+        const savedTrn = localStorage.getItem('sheq_hr_training');
+        setTrainingRecords(savedTrn ? JSON.parse(savedTrn) : []);
+      }
+    } catch {}
+  }, [company.id]);
+
   const [showAddTrainingModal, setShowAddTrainingModal] = useState(false);
   const [showAddMultipleModal, setShowAddMultipleModal] = useState(false);
   const [multiEmployee, setMultiEmployee] = useState('');
@@ -158,14 +186,20 @@ export const HRManagementView: React.FC<HRManagementViewProps> = ({
   useEffect(() => {
     try {
       localStorage.setItem('sheq_hr_employees', JSON.stringify(employees));
+      if (company?.id) {
+        localStorage.setItem(`sheq_${company.id}_hr_employees`, JSON.stringify(employees));
+      }
     } catch {}
-  }, [employees]);
+  }, [employees, company?.id]);
 
   useEffect(() => {
     try {
       localStorage.setItem('sheq_hr_training', JSON.stringify(trainingRecords));
+      if (company?.id) {
+        localStorage.setItem(`sheq_${company.id}_hr_training`, JSON.stringify(trainingRecords));
+      }
     } catch {}
-  }, [trainingRecords]);
+  }, [trainingRecords, company?.id]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -408,18 +442,25 @@ export const HRManagementView: React.FC<HRManagementViewProps> = ({
       )}
 
       {/* Top Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-        <span className="text-slate-600 font-semibold">{company.name}</span>
-        <span className="px-1.5 py-0.5 rounded border border-amber-300/80 bg-amber-50 text-amber-700 text-[10px] font-bold tracking-wider">
-          TRIAL
-        </span>
+      <div className="flex items-center justify-between gap-2 text-xs font-medium text-slate-500">
+        <div className="flex items-center gap-2">
+          <span className="text-slate-700 font-bold">{company.name}</span>
+          <span className="px-1.5 py-0.5 rounded border border-blue-300 bg-blue-50 text-blue-700 text-[10px] font-bold tracking-wider uppercase">
+            {company.plan || 'ACTIVE'}
+          </span>
+          {company.registrationNumber && (
+            <span className="hidden sm:inline-block font-mono text-slate-400">
+              • Reg: {company.registrationNumber}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">HR Management</h1>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{company.name} — HR Management</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Manage employees, structure, competencies, and training records.
+          Manage employees, organizational structure, competencies, and training records for {company.name}.
         </p>
       </div>
 
@@ -474,7 +515,9 @@ export const HRManagementView: React.FC<HRManagementViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-600 flex items-center gap-2 shadow-xs">
             <FileText className="w-4 h-4 text-slate-400" />
             <span className="font-semibold text-slate-500">DOCUMENT #:</span>
-            <span className="font-bold text-slate-900">NK-DC-015</span>
+            <span className="font-bold text-slate-900">
+              {company.name ? company.name.slice(0, 4).toUpperCase().replace(/[^A-Z0-9]/g, '') : 'NK'}-DC-015
+            </span>
           </div>
 
           {/* 3 Metric Cards */}
@@ -574,7 +617,7 @@ export const HRManagementView: React.FC<HRManagementViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-600 flex items-center gap-2 shadow-xs">
             <FileText className="w-4 h-4 text-slate-400" />
             <span className="font-semibold text-slate-500">DOCUMENT #:</span>
-            <span className="font-bold text-slate-900">NK-DC-015</span>
+            <span className="font-bold text-slate-900">{compPrefix}-DC-015</span>
           </div>
 
           {/* Toolbar Matching 2nd Pinned Image */}
@@ -694,7 +737,7 @@ export const HRManagementView: React.FC<HRManagementViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-600 flex items-center gap-2 shadow-xs">
             <FileText className="w-4 h-4 text-slate-400" />
             <span className="font-semibold text-slate-500">DOCUMENT #:</span>
-            <span className="font-bold text-slate-900">NK-DC-015</span>
+            <span className="font-bold text-slate-900">{compPrefix}-DC-015</span>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-8">
@@ -791,7 +834,7 @@ export const HRManagementView: React.FC<HRManagementViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-600 flex items-center gap-2 shadow-xs">
             <FileText className="w-4 h-4 text-slate-400" />
             <span className="font-semibold text-slate-500">DOCUMENT #:</span>
-            <span className="font-bold text-slate-900">NK-DC-015</span>
+            <span className="font-bold text-slate-900">{compPrefix}-DC-015</span>
           </div>
 
           {/* Toolbar Matching 3rd Pinned Image */}

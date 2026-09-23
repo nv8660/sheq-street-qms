@@ -160,8 +160,15 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiGeneratedPreview, setAiGeneratedPreview] = useState<Array<Partial<SupplierItem> & { selected?: boolean }>>([]);
 
+  const compPrefix = company?.name ? company.name.split(' ').map((w) => w[0]).join('').slice(0, 3).toUpperCase() : 'NK';
+
   const [suppliers, setSuppliers] = useState<SupplierItem[]>(() => {
     try {
+      const savedScoped = localStorage.getItem(`sheq_${company?.id}_suppliers`);
+      if (savedScoped) {
+        const parsed = JSON.parse(savedScoped);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
       const saved = localStorage.getItem('sheq_suppliers');
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -170,6 +177,28 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
     } catch {}
     return initialSuppliersList;
   });
+
+  useEffect(() => {
+    try {
+      const savedScoped = localStorage.getItem(`sheq_${company.id}_suppliers`);
+      if (savedScoped) {
+        const parsed = JSON.parse(savedScoped);
+        if (Array.isArray(parsed)) {
+          setSuppliers(parsed);
+          return;
+        }
+      }
+      const savedGlobal = localStorage.getItem('sheq_suppliers');
+      if (savedGlobal) {
+        const parsed = JSON.parse(savedGlobal);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSuppliers(parsed);
+          return;
+        }
+      }
+      setSuppliers(initialSuppliersList);
+    } catch {}
+  }, [company.id]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -185,8 +214,11 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
   useEffect(() => {
     try {
       localStorage.setItem('sheq_suppliers', JSON.stringify(suppliers));
+      if (company?.id) {
+        localStorage.setItem(`sheq_${company.id}_suppliers`, JSON.stringify(suppliers));
+      }
     } catch {}
-  }, [suppliers]);
+  }, [suppliers, company?.id]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -417,19 +449,26 @@ Swiftline Cross-Border Haulage, Gate 8 City Deep Terminal Johannesburg, Logistic
       )}
 
       {/* Top Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-        <span className="text-slate-600 font-semibold">{company.name}</span>
-        <span className="px-1.5 py-0.5 rounded border border-amber-300/80 bg-amber-50 text-amber-700 text-[10px] font-bold tracking-wider">
-          TRIAL
-        </span>
+      <div className="flex items-center justify-between gap-2 text-xs font-medium text-slate-500">
+        <div className="flex items-center gap-2">
+          <span className="text-slate-700 font-bold">{company.name}</span>
+          <span className="px-1.5 py-0.5 rounded border border-blue-300 bg-blue-50 text-blue-700 text-[10px] font-bold tracking-wider uppercase">
+            {company.plan || 'ACTIVE'}
+          </span>
+          {company.registrationNumber && (
+            <span className="hidden sm:inline-block font-mono text-slate-400">
+              • Reg: {company.registrationNumber}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Supplier Management</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{company.name} — Supplier Management</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Manage approved suppliers and track performance.
+            Manage approved supplier list (ASL) and vendor performance tracking for {company.name}.
           </p>
         </div>
 
@@ -658,7 +697,7 @@ Swiftline Cross-Border Haulage, Gate 8 City Deep Terminal Johannesburg, Logistic
           <div className="bg-slate-50/80 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-600 flex items-center gap-2 shadow-2xs">
             <FileText className="w-4 h-4 text-slate-400" />
             <span className="font-semibold text-slate-500">DOCUMENT #:</span>
-            <span className="font-bold text-slate-900">NK-DC-009</span>
+            <span className="font-bold text-slate-900">{compPrefix}-DC-009</span>
           </div>
 
           {/* Search, Year, Weighted Summary & Refresh */}

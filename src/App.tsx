@@ -37,7 +37,7 @@ import {
   ProcessControlItem,
   AuthUser,
 } from './types';
-import { Menu, X, Mail, ExternalLink } from 'lucide-react';
+import { Menu, X, Mail, ExternalLink, Building, CheckCircle2, Shield, Sparkles } from 'lucide-react';
 import { LoginAlertNotice } from './components/SessionModeSelectionView';
 import { ConsultantDashboardView } from './components/ConsultantDashboardView';
 import { AuditorDashboardView } from './components/AuditorDashboardView';
@@ -212,6 +212,24 @@ export function App() {
     ];
   });
 
+  // Company Switch / New Profile Toast State
+  const [companySwitchNotice, setCompanySwitchNotice] = useState<{
+    companyName: string;
+    industry?: string;
+    plan?: string;
+    isNew?: boolean;
+    timestamp: string;
+  } | null>(null);
+
+  // Auto-dismiss company switch notification after 5 seconds
+  useEffect(() => {
+    if (!companySwitchNotice) return;
+    const timer = setTimeout(() => {
+      setCompanySwitchNotice(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [companySwitchNotice]);
+
   const handleAddNewCompany = (newCompany: Company) => {
     setCompanies((prev) => {
       const filtered = prev.filter(
@@ -223,10 +241,96 @@ export function App() {
       } catch {}
       return updated;
     });
+
     setCompany(newCompany);
     try {
       localStorage.setItem('sheq_company', JSON.stringify(newCompany));
     } catch {}
+
+    // Initialize company-scoped initial data for the new entity
+    const newCompId = newCompany.id;
+    const initialCompanyNCRs: NCRItem[] = [];
+    const initialCompanyAudits: AuditProcessRow[] = [
+      {
+        id: `aud-${newCompId}-1`,
+        processName: `${newCompany.industry ? newCompany.industry.split('&')[0].trim() : 'Operational'} Process Management`,
+        months: {
+          JAN: { status: 'completed', initials: 'QA' },
+          APR: { status: 'planned', initials: 'Lead' },
+        },
+        ncrs: '0',
+        ofis: '0',
+        totalScore: '100%',
+      },
+      {
+        id: `aud-${newCompId}-2`,
+        processName: 'Document & Quality Control Assurance',
+        months: {
+          FEB: { status: 'planned', initials: 'Lead' },
+          JUN: { status: 'planned', initials: 'QC' },
+        },
+        ncrs: '0',
+        ofis: '0',
+        totalScore: '100%',
+      },
+    ];
+
+    const initialCompanyHR = {
+      departments: [
+        { name: 'Executive Leadership', count: 1 },
+        { name: 'Quality Assurance & SHEQ', count: 2 },
+        { name: 'Operations & Production', count: 3 },
+      ],
+      jobTitles: [
+        { name: newCompany.topExecutiveTitle || 'Managing Director', count: 1 },
+        { name: 'SHEQ Officer', count: 1 },
+        { name: 'Operations Manager', count: 1 },
+      ],
+      employees: [],
+      trainingRecords: [],
+    };
+
+    const initialCompanyProcesses: ProcessControlItem[] = [
+      {
+        id: `pr-${newCompId}-1`,
+        code: `${newCompany.name ? newCompany.name.slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '') : 'PR'}-01`,
+        name: `${newCompany.industry || 'Core Operations'} Process Execution`,
+        documentNumber: `${newCompany.name ? newCompany.name.slice(0, 4).toUpperCase().replace(/[^A-Z0-9]/g, '') : 'COMP'}-SOP-001`,
+        isoClause: '8.5',
+        processOwner: 'Operations Lead',
+        status: 'Approved',
+        hasFlowchart: true,
+        hasQCP: false,
+        description: `Operational process workflow for ${newCompany.name}.`,
+      },
+    ];
+
+    setNcrs(initialCompanyNCRs);
+    setAuditRows(initialCompanyAudits);
+    setHrData(initialCompanyHR);
+    setProcesses(initialCompanyProcesses);
+    setReviews([]);
+
+    try {
+      localStorage.setItem(`sheq_${newCompId}_ncrs`, JSON.stringify(initialCompanyNCRs));
+      localStorage.setItem(`sheq_${newCompId}_auditRows`, JSON.stringify(initialCompanyAudits));
+      localStorage.setItem(`sheq_${newCompId}_hrData`, JSON.stringify(initialCompanyHR));
+      localStorage.setItem(`sheq_${newCompId}_processes`, JSON.stringify(initialCompanyProcesses));
+      localStorage.setItem(`sheq_${newCompId}_reviews`, JSON.stringify([]));
+    } catch {}
+
+    // AUTOMATICALLY CHANGE PAGE ACCORDING TO NEW COMPANY PROFILE:
+    // If the user was on settings or profile, keep them in company profile view; otherwise navigate to dashboard
+    setActiveTab((prev) => (prev === 'settings' || prev === 'profile' ? prev : 'dashboard'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    setCompanySwitchNotice({
+      companyName: newCompany.name,
+      industry: newCompany.industry,
+      plan: newCompany.plan,
+      isNew: true,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    });
   };
 
   const handleSwitchCompany = (targetCompany: Company) => {
@@ -234,6 +338,40 @@ export function App() {
     try {
       localStorage.setItem('sheq_company', JSON.stringify(targetCompany));
     } catch {}
+
+    // Load target company's scoped data
+    const compId = targetCompany.id;
+    try {
+      const savedNcrs = localStorage.getItem(`sheq_${compId}_ncrs`);
+      if (savedNcrs) setNcrs(JSON.parse(savedNcrs));
+      else if (compId === initialCompany.id) setNcrs(initialNCRs);
+
+      const savedAudits = localStorage.getItem(`sheq_${compId}_auditRows`);
+      if (savedAudits) setAuditRows(JSON.parse(savedAudits));
+      else if (compId === initialCompany.id) setAuditRows(initialAuditRows);
+
+      const savedHR = localStorage.getItem(`sheq_${compId}_hrData`);
+      if (savedHR) setHrData(JSON.parse(savedHR));
+      else if (compId === initialCompany.id) setHrData(initialHRData);
+
+      const savedProcesses = localStorage.getItem(`sheq_${compId}_processes`);
+      if (savedProcesses) setProcesses(JSON.parse(savedProcesses));
+      else if (compId === initialCompany.id) setProcesses(initialProcessList);
+
+      const savedReviews = localStorage.getItem(`sheq_${compId}_reviews`);
+      if (savedReviews) setReviews(JSON.parse(savedReviews));
+      else if (compId === initialCompany.id) setReviews(initialReviews);
+    } catch {}
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    setCompanySwitchNotice({
+      companyName: targetCompany.name,
+      industry: targetCompany.industry,
+      plan: targetCompany.plan,
+      isNew: false,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    });
   };
 
   const handleDeleteCompany = (targetCompanyId: string) => {
@@ -257,6 +395,8 @@ export function App() {
 
   const [ncrs, setNcrs] = useState<NCRItem[]>(() => {
     try {
+      const savedScoped = localStorage.getItem(`sheq_${initialCompany.id}_ncrs`);
+      if (savedScoped) return JSON.parse(savedScoped);
       const saved = localStorage.getItem('sheq_ncrs');
       return saved ? JSON.parse(saved) : initialNCRs;
     } catch {
@@ -266,6 +406,8 @@ export function App() {
 
   const [auditRows, setAuditRows] = useState<AuditProcessRow[]>(() => {
     try {
+      const savedScoped = localStorage.getItem(`sheq_${initialCompany.id}_auditRows`);
+      if (savedScoped) return JSON.parse(savedScoped);
       const saved = localStorage.getItem('sheq_auditRows');
       return saved ? JSON.parse(saved) : initialAuditRows;
     } catch {
@@ -275,6 +417,8 @@ export function App() {
 
   const [hrData, setHrData] = useState<typeof initialHRData>(() => {
     try {
+      const savedScoped = localStorage.getItem(`sheq_${initialCompany.id}_hrData`);
+      if (savedScoped) return JSON.parse(savedScoped);
       const saved = localStorage.getItem('sheq_hrData');
       return saved ? JSON.parse(saved) : initialHRData;
     } catch {
@@ -284,6 +428,8 @@ export function App() {
 
   const [reviews, setReviews] = useState<ReviewMeeting[]>(() => {
     try {
+      const savedScoped = localStorage.getItem(`sheq_${initialCompany.id}_reviews`);
+      if (savedScoped) return JSON.parse(savedScoped);
       const saved = localStorage.getItem('sheq_reviews');
       return saved ? JSON.parse(saved) : initialReviews;
     } catch {
@@ -293,6 +439,8 @@ export function App() {
 
   const [processes, setProcesses] = useState<ProcessControlItem[]>(() => {
     try {
+      const savedScoped = localStorage.getItem(`sheq_${initialCompany.id}_processes`);
+      if (savedScoped) return JSON.parse(savedScoped);
       const saved = localStorage.getItem('sheq_processes');
       return saved ? JSON.parse(saved) : initialProcessList;
     } catch {
@@ -302,7 +450,7 @@ export function App() {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Sync to localStorage
+  // Sync to localStorage both globally and company-scoped
   React.useEffect(() => {
     try {
       localStorage.setItem('sheq_activeTab', activeTab);
@@ -313,6 +461,14 @@ export function App() {
       localStorage.setItem('sheq_hrData', JSON.stringify(hrData));
       localStorage.setItem('sheq_reviews', JSON.stringify(reviews));
       localStorage.setItem('sheq_processes', JSON.stringify(processes));
+
+      if (company?.id) {
+        localStorage.setItem(`sheq_${company.id}_ncrs`, JSON.stringify(ncrs));
+        localStorage.setItem(`sheq_${company.id}_auditRows`, JSON.stringify(auditRows));
+        localStorage.setItem(`sheq_${company.id}_hrData`, JSON.stringify(hrData));
+        localStorage.setItem(`sheq_${company.id}_reviews`, JSON.stringify(reviews));
+        localStorage.setItem(`sheq_${company.id}_processes`, JSON.stringify(processes));
+      }
     } catch {
       // ignore storage quota errors
     }
@@ -327,6 +483,13 @@ export function App() {
       localStorage.removeItem('sheq_hrData');
       localStorage.removeItem('sheq_reviews');
       localStorage.removeItem('sheq_processes');
+      if (company?.id) {
+        localStorage.removeItem(`sheq_${company.id}_ncrs`);
+        localStorage.removeItem(`sheq_${company.id}_auditRows`);
+        localStorage.removeItem(`sheq_${company.id}_hrData`);
+        localStorage.removeItem(`sheq_${company.id}_reviews`);
+        localStorage.removeItem(`sheq_${company.id}_processes`);
+      }
     } catch {}
     setCompany(initialCompany);
     setNcrs(initialNCRs);
@@ -716,7 +879,7 @@ export function App() {
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-slate-300">{company?.name || 'nk'}</span>
           <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30">
-            TRIAL
+            {company?.plan || 'TRIAL'}
           </span>
         </div>
       </div>
@@ -805,6 +968,45 @@ export function App() {
                 <ExternalLink className="w-3 h-3" />
               </a>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Floating Company Profile Switch / Created Toast */}
+      {companySwitchNotice && (
+        <div className="fixed top-5 right-5 z-50 max-w-md bg-slate-900/95 border border-emerald-500/50 text-white rounded-2xl p-4 shadow-2xl backdrop-blur-md flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center flex-shrink-0 text-emerald-400 mt-0.5">
+            <Building className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0 text-xs">
+            <div className="font-bold text-white flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <span>{companySwitchNotice.isNew ? 'Company Profile Created' : 'Workspace Switched'}</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              </span>
+              <button
+                type="button"
+                onClick={() => setCompanySwitchNotice(null)}
+                className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
+                title="Dismiss"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="text-slate-200 text-xs mt-1 font-semibold leading-snug">
+              Active company: <span className="text-emerald-400 font-bold">{companySwitchNotice.companyName}</span>
+            </p>
+            <p className="text-slate-400 text-[11px] mt-0.5 leading-snug">
+              All pages, metrics, audit schedules, and modules are now configured for this profile.
+            </p>
+            <div className="flex items-center gap-2 mt-2 pt-1.5 border-t border-slate-800 text-[10px] text-slate-400">
+              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-bold border border-slate-700">
+                {companySwitchNotice.plan || 'ACTIVE'}
+              </span>
+              {companySwitchNotice.industry && (
+                <span className="truncate">{companySwitchNotice.industry}</span>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -91,9 +91,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setCompanyPhone(company.phone || '+27 11 948 2000');
     setCompanyAddress(company.address || 'no84 guindy workspace');
     setCompanyWebsite(company.website || '');
-    if (company.employeesCount) setEmployeesCount(company.employeesCount);
-    if (company.companyDescription) setCompanyDescription(company.companyDescription);
-    if (company.mainProductsAndServices) setMainProductsServices(company.mainProductsAndServices);
+    setEmployeesCount(company.employeesCount || '11-50 employees');
+    setCompanyDescription(company.companyDescription || '');
+    setMainProductsServices(company.mainProductsAndServices || '');
+    setTopExecutiveTitle(company.topExecutiveTitle || 'Managing Director');
+    if (company.keyFunctionalRoles) {
+      setFunctionalRoles({
+        purchasingResponsible: company.keyFunctionalRoles.purchasingResponsible || ['Procurement Manager'],
+        supplierManagementResponsible: company.keyFunctionalRoles.supplierManagementResponsible || ['Supply Chain Manager'],
+        hrManager: company.keyFunctionalRoles.hrManager || ['Human Resources Manager'],
+        trainingCoordinator: company.keyFunctionalRoles.trainingCoordinator || ['Training & Development Officer'],
+        productReleaseApprover: company.keyFunctionalRoles.productReleaseApprover || ['Quality Manager'],
+        salesManager: company.keyFunctionalRoles.salesManager || ['Sales & Marketing Manager'],
+      });
+    }
+    if (company.socialMedia) {
+      setSocialLinks({
+        website: company.website || '',
+        linkedIn: company.socialMedia.linkedIn || '',
+        facebook: company.socialMedia.facebook || '',
+        instagram: company.socialMedia.instagram || '',
+        twitter: company.socialMedia.twitter || '',
+        otherLinks: company.socialMedia.otherLinks || '',
+      });
+    }
   }, [company]);
 
   // 1. Company Leadership State (Matches Screenshot 1)
