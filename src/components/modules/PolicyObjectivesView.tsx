@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Target,
   Plus,
@@ -26,6 +26,7 @@ import {
   Loader2,
   Calendar,
   ChevronDown,
+  Printer,
 } from 'lucide-react';
 import {
   Company,
@@ -42,6 +43,8 @@ import {
   initialRisks,
   initialOpportunities,
 } from '../../data/mockData';
+import { downloadPolicyPDF, downloadPolicyDoc } from '../../utils/policyExport';
+import { generateNextAIPolicy, getSuggestedPolicy } from '../../utils/policyGenerator';
 
 interface PolicyObjectivesViewProps {
   company: Company;
@@ -56,7 +59,21 @@ interface ManualSection {
 
 export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ company }) => {
   const [activeTab, setActiveTab] = useState<string>('policies');
-  const [policies, setPolicies] = useState<PolicyItem[]>(initialPolicies);
+  const [policies, setPolicies] = useState<PolicyItem[]>(() => {
+    try {
+      const key = company?.id ? `sheq_${company.id}_policies` : 'sheq_policies';
+      const saved = localStorage.getItem(key);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return initialPolicies;
+  });
+
+  useEffect(() => {
+    try {
+      const key = company?.id ? `sheq_${company.id}_policies` : 'sheq_policies';
+      localStorage.setItem(key, JSON.stringify(policies));
+    } catch {}
+  }, [policies, company?.id]);
   const [objectives, setObjectives] = useState<ObjectiveItem[]>(initialObjectives);
   const [stakeholders, setStakeholders] = useState<StakeholderIssue[]>(initialStakeholders);
   const [risks, setRisks] = useState<RiskItem[]>(initialRisks);
@@ -176,6 +193,7 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
   // Modals state
   const [showNewModal, setShowNewModal] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<PolicyItem | null>(null);
+  const [viewingPolicy, setViewingPolicy] = useState<PolicyItem | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importText, setImportText] = useState('');
   const [showNewObjectiveModal, setShowNewObjectiveModal] = useState(false);
@@ -550,6 +568,9 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
   const handleDownloadPdf = () => {
     const manualTitle = `Quality_Management_System_Manual_${company.name}.pdf`;
     showNotice(`📥 Preparing and downloading ${manualTitle}...`);
+    setTimeout(() => {
+      window.print();
+    }, 400);
   };
 
   // Manual Section Save
@@ -576,11 +597,9 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
     }, 500);
   };
 
-  // Modal handlers
-  const handleAddPolicy = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!policyTitle.trim()) return;
-    const item: PolicyItem = {
+  // Policy Handlers with Instant Download Support
+  const buildPolicyItemFromForm = (): PolicyItem => {
+    return {
       id: `pol-${Date.now()}`,
       title: policyTitle.trim(),
       documentNumber: policyDocNumber.trim() || undefined,
@@ -590,10 +609,12 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
       reviewDate: policyReviewDate.trim() || undefined,
       content:
         policyContent.trim() ||
-        'Policy statement committed to ISO compliance and continual improvement.',
-      dateCreated: policyEffectiveDate.trim() || '21 Sep 2026',
+        `Top Management of ${company.name || 'our organization'} is committed to satisfying customer requirements, adhering to ISO 9001:2015 guidelines, and driving continual improvement of the Quality Management System through structured auditing and objective tracking.`,
+      dateCreated: policyEffectiveDate.trim() || '16 Sep 2026',
     };
-    setPolicies([item, ...policies]);
+  };
+
+  const resetPolicyForm = () => {
     setPolicyTitle('');
     setPolicyDocNumber('');
     setPolicyCategory('Quality');
@@ -601,7 +622,58 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
     setPolicyEffectiveDate('');
     setPolicyReviewDate('');
     setPolicyContent('');
+  };
+
+  const handleAddPolicy = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!policyTitle.trim()) return;
+    const item = buildPolicyItemFromForm();
+    setPolicies([item, ...policies]);
+    resetPolicyForm();
     setShowNewModal(false);
+    showNotice(`✨ Policy "${item.title}" saved successfully!`);
+  };
+
+  const handleSaveAndDownload = (e: React.MouseEvent, format: 'pdf' | 'doc') => {
+    e.preventDefault();
+    if (!policyTitle.trim()) {
+      alert('Please enter a policy title before downloading.');
+      return;
+    }
+    const item = buildPolicyItemFromForm();
+    setPolicies([item, ...policies]);
+    resetPolicyForm();
+    setShowNewModal(false);
+
+    if (format === 'pdf') {
+      downloadPolicyPDF(item, company);
+      showNotice(`📥 Policy "${item.title}" saved & downloading as PDF!`);
+    } else {
+      downloadPolicyDoc(item, company);
+      showNotice(`📥 Policy "${item.title}" saved & downloading as Word document!`);
+    }
+  };
+
+  const handleDownloadPolicy = (p: PolicyItem, format: 'pdf' | 'doc' = 'pdf') => {
+    if (format === 'pdf') {
+      downloadPolicyPDF(p, company);
+      showNotice(`📥 Preparing PDF download for "${p.title}"...`);
+    } else {
+      downloadPolicyDoc(p, company);
+      showNotice(`📥 Preparing Word download for "${p.title}"...`);
+    }
+  };
+
+  const handleAutoFillNewPolicyForm = () => {
+    const suggested = getSuggestedPolicy(policies, company);
+    setPolicyTitle(suggested.title);
+    setPolicyDocNumber(suggested.documentNumber || '');
+    setPolicyCategory(suggested.category || 'Quality');
+    setPolicyStatus(suggested.status || 'Approved');
+    setPolicyEffectiveDate(suggested.effectiveDate || '16-09-2026');
+    setPolicyReviewDate(suggested.reviewDate || '16-09-2027');
+    setPolicyContent(suggested.content || '');
+    showNotice(`✨ Form auto-filled with "${suggested.title}"!`);
   };
 
   const handleUpdatePolicy = (e: React.FormEvent) => {
@@ -609,6 +681,7 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
     if (!editingPolicy) return;
     setPolicies(policies.map((p) => (p.id === editingPolicy.id ? editingPolicy : p)));
     setEditingPolicy(null);
+    showNotice(`✨ Policy "${editingPolicy.title}" updated successfully!`);
   };
 
   const handleAddObjective = (e: React.FormEvent) => {
@@ -796,17 +869,10 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
               onClick={() => {
                 setAiGenerating('policies');
                 setTimeout(() => {
-                  const newAi: PolicyItem = {
-                    id: `pol-ai-${Date.now()}`,
-                    title: 'Information Security & Data Integrity Policy',
-                    category: 'INFORMATION SECURITY',
-                    status: 'DRAFT',
-                    content: `${company.name} safeguards corporate and customer data assets according to ISO/IEC 27001 guidelines, enforcing multi-factor authentication and strict access roles.`,
-                    dateCreated: '16 Sep 2026',
-                  };
+                  const newAi = generateNextAIPolicy(policies, company);
                   setPolicies([newAi, ...policies]);
                   setAiGenerating(null);
-                  showNotice('✨ Successfully auto-generated Information Security Policy with AI!');
+                  showNotice(`✨ Successfully auto-generated "${newAi.title}" with AI!`);
                 }, 500);
               }}
               disabled={aiGenerating === 'policies'}
@@ -828,12 +894,23 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
                 className="bg-white border border-slate-200 hover:border-slate-300 rounded-2xl px-5 py-4 flex items-center justify-between shadow-xs transition-colors group"
               >
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  {p.documentNumber && (
+                  {p.documentNumber ? (
                     <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">
                       {p.documentNumber}
                     </span>
+                  ) : (
+                    <span className="font-mono text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                      POL-{p.id.slice(-4).toUpperCase()}
+                    </span>
                   )}
-                  <span className="font-bold text-sm text-slate-900">{p.title}</span>
+                  <button
+                    type="button"
+                    onClick={() => setViewingPolicy(p)}
+                    className="font-bold text-sm text-slate-900 hover:text-blue-600 cursor-pointer transition-colors text-left"
+                    title="Click to view policy document"
+                  >
+                    {p.title}
+                  </button>
                   <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-[#eff6ff] text-[#1d4ed8] border border-[#bfdbfe]">
                     {p.category}
                   </span>
@@ -847,17 +924,37 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
                   )}
                 </div>
 
-                <div className="flex items-center gap-1 text-slate-400">
+                <div className="flex items-center gap-1.5 text-slate-400">
                   <button
+                    type="button"
+                    onClick={() => setViewingPolicy(p)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                    title="View & Preview Policy Document"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="hidden sm:inline">Preview</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadPolicy(p, 'pdf')}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors cursor-pointer"
+                    title="Download Policy as Print-Ready PDF"
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Download</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setEditingPolicy(p)}
-                    className="p-1.5 hover:text-slate-700 rounded-md hover:bg-slate-100 cursor-pointer"
+                    className="p-1.5 hover:text-slate-700 rounded-md hover:bg-slate-100 cursor-pointer text-slate-400"
                     title="Edit Policy"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
+                    type="button"
                     onClick={() => setPolicies(policies.filter((item) => item.id !== p.id))}
-                    className="p-1.5 hover:text-red-600 rounded-md hover:bg-red-50 cursor-pointer"
+                    className="p-1.5 hover:text-red-600 rounded-md hover:bg-red-50 cursor-pointer text-slate-400"
                     title="Delete Policy"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -1612,7 +1709,18 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 my-8">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3">
-              <h2 className="font-bold text-xl text-slate-900">New Policy</h2>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h2 className="font-bold text-xl text-slate-900">New Policy</h2>
+                <button
+                  type="button"
+                  onClick={handleAutoFillNewPolicyForm}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                  title="Auto-fill form with a distinct suggested ISO policy"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  <span>AI Suggest / Auto-Fill</span>
+                </button>
+              </div>
               <button
                 onClick={() => setShowNewModal(false)}
                 className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
@@ -1779,20 +1887,40 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
               </div>
 
               {/* Footer Actions */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowNewModal(false)}
-                  className="px-5 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+                  className="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 rounded-lg text-sm font-medium transition-colors cursor-pointer self-start sm:self-auto"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-[#1d6eed] hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors shadow-xs cursor-pointer"
-                >
-                  Save Policy
-                </button>
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <button
+                    type="button"
+                    onClick={(e) => handleSaveAndDownload(e, 'doc')}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+                    title="Save policy and download Word (.doc)"
+                  >
+                    <FileText className="w-4 h-4 text-slate-500" />
+                    <span>Save & Word (.doc)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => handleSaveAndDownload(e, 'pdf')}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-xs cursor-pointer"
+                    title="Save policy and download print-ready PDF"
+                  >
+                    <Download className="w-4 h-4 text-white" />
+                    <span>Save & Download PDF</span>
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-[#1d6eed] hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-xs cursor-pointer"
+                  >
+                    Save Policy
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -1805,7 +1933,7 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-lg text-slate-900">Edit Policy</h3>
-              <button onClick={() => setEditingPolicy(null)} className="text-slate-400">
+              <button onClick={() => setEditingPolicy(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1860,22 +1988,177 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setEditingPolicy(null)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-xs text-slate-700"
+                  onClick={() => handleDownloadPolicy(editingPolicy, 'pdf')}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold cursor-pointer"
+                  title="Download this policy as PDF"
                 >
-                  Cancel
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download PDF</span>
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold"
-                >
-                  Update Policy
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingPolicy(null)}
+                    className="px-4 py-2 border border-slate-300 rounded-lg text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer"
+                  >
+                    Update Policy
+                  </button>
+                </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Policy Document Preview Modal */}
+      {viewingPolicy && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 my-8 space-y-5">
+            {/* Header Ribbon */}
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
+                    {viewingPolicy.documentNumber || `POL-${viewingPolicy.id.slice(-4).toUpperCase()}`}
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                    {viewingPolicy.category}
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    {viewingPolicy.status}
+                  </span>
+                </div>
+                <h2 className="text-xl font-extrabold text-slate-900 mt-2 tracking-tight">
+                  {viewingPolicy.title}
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {company.name} • ISO 9001:2015 Clause 5.2 Controlled Policy Document
+                </p>
+              </div>
+
+              <button
+                onClick={() => setViewingPolicy(null)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Document Details Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 text-xs">
+              <div>
+                <span className="text-slate-400 block text-[11px]">Effective Date</span>
+                <span className="font-semibold text-slate-800">{viewingPolicy.effectiveDate || '16-Sep-2026'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[11px]">Review Date</span>
+                <span className="font-semibold text-slate-800">{viewingPolicy.reviewDate || '16-Sep-2027'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[11px]">Revision</span>
+                <span className="font-semibold text-slate-800">Rev 01</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[11px]">Classification</span>
+                <span className="font-semibold text-slate-800">Controlled QMS</span>
+              </div>
+            </div>
+
+            {/* Policy Statement Body */}
+            <div className="space-y-2">
+              <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Policy Statement & Management Commitment
+              </div>
+              <div className="bg-white border-l-4 border-blue-600 bg-blue-50/20 p-4 rounded-r-xl text-sm text-slate-800 leading-relaxed font-normal whitespace-pre-line">
+                {viewingPolicy.content ||
+                  `Top Management of ${company.name} is committed to satisfying customer requirements, adhering to ISO 9001:2015 guidelines, and driving continual improvement of the Quality Management System.`}
+              </div>
+            </div>
+
+            {/* Key ISO 9001 Commitments Box */}
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-xs space-y-2">
+              <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                <Shield className="w-4 h-4 text-blue-600" />
+                <span>ISO 9001:2015 Clause 5.2 Mandated Framework</span>
+              </div>
+              <ul className="list-disc list-inside text-slate-600 space-y-1">
+                <li>Appropriate to organizational purpose and strategic context</li>
+                <li>Provides a framework for setting and evaluating measurable quality objectives</li>
+                <li>Includes commitment to satisfy applicable statutory, regulatory and customer requirements</li>
+                <li>Communicated, understood, and applied across all organizational tiers</li>
+              </ul>
+            </div>
+
+            {/* Digital Authorization Stamp */}
+            <div className="flex items-center justify-between text-xs border border-emerald-200 bg-emerald-50/70 p-3 rounded-xl">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <div>
+                  <div className="font-bold text-emerald-950">Approved by Top Management</div>
+                  <div className="text-[10px] text-emerald-700">
+                    Digitally signed & authorized for {company.name}
+                  </div>
+                </div>
+              </div>
+              <span className="font-mono text-[10px] bg-white border border-emerald-300 text-emerald-800 px-2 py-0.5 rounded font-bold">
+                AUTH-VERIFIED
+              </span>
+            </div>
+
+            {/* Modal Action Buttons */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const toEdit = viewingPolicy;
+                    setViewingPolicy(null);
+                    setEditingPolicy(toEdit);
+                  }}
+                  className="px-3.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Edit Policy</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPolicy(viewingPolicy, 'doc')}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                  title="Download as Word Document (.doc)"
+                >
+                  <FileText className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Download (.doc)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPolicy(viewingPolicy, 'pdf')}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-xs cursor-pointer"
+                  title="Download as Print-Ready PDF"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewingPolicy(null)}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

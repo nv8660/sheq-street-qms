@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Clock,
   CheckCircle2,
@@ -16,15 +16,11 @@ import {
   Check,
   Shield,
   Target,
-  Building,
-  ChevronDown,
-  MapPin,
-  Globe,
   Plus,
-  ExternalLink,
 } from 'lucide-react';
 import { NavigationTab, Company } from '../types';
 import { AddCompanyModal } from './AddCompanyModal';
+import { calculateAuditReadiness } from '../utils/auditReadiness';
 
 interface DashboardViewProps {
   company: Company;
@@ -41,9 +37,9 @@ interface DashboardViewProps {
 export const DashboardView: React.FC<DashboardViewProps> = ({
   company,
   companies = [],
-  ncrs,
-  auditRows,
-  processes,
+  ncrs = [],
+  auditRows = [],
+  processes = [],
   onNavigate,
   onLoadDemoData,
   onAddCompany,
@@ -52,12 +48,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [demoDataLoaded, setDemoDataLoaded] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [showAddCompanyModal, setShowAddCompanyModal] = useState(false);
-  const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
 
   const openNCRsCount = ncrs ? ncrs.filter((n) => n.status !== 'CLOSED').length : 0;
   const processMapCount = processes ? processes.length : 1;
 
   const compPrefix = company?.name ? company.name.split(' ').map((w) => w[0]).join('').slice(0, 3).toUpperCase() : 'NK';
+
+  // Live dynamic Audit Readiness & Overall Score computed from auditRows & ncrs
+  const {
+    readinessScore: auditReadinessScore,
+    overallAuditScore,
+    headline: auditReadinessHeadline,
+  } = useMemo(() => {
+    let reports: any[] = [];
+    try {
+      const saved =
+        localStorage.getItem(`sheq_${company?.id}_audit_reports`) ||
+        localStorage.getItem('sheq_audit_reports_v3') ||
+        localStorage.getItem('sheq_audit_reports');
+      if (saved) reports = JSON.parse(saved);
+    } catch {}
+    return calculateAuditReadiness(auditRows, ncrs, reports);
+  }, [auditRows, ncrs, company?.id]);
 
   // Closest due NCR calculation
   const openNCRsWithDue = ncrs
@@ -71,192 +83,51 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     setTimeout(() => setDemoDataLoaded(false), 3000);
   };
 
-  const isoScopes = company.isoScope && company.isoScope.length > 0 ? company.isoScope : ['ISO 9001:2015'];
-
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-200">
-      {/* Top Breadcrumb & Fast Workspace Switcher Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-medium text-slate-500 pb-1 border-b border-slate-200/60">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-bold text-slate-800 text-sm">{company.name}</span>
-          <span className="px-2 py-0.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-[10px] font-bold tracking-wider uppercase">
-            {company.plan || 'ACTIVE'}
+      {/* Top Breadcrumb row */}
+      <div className="flex items-center justify-between gap-2 text-xs font-medium text-slate-500">
+        <div className="flex items-center gap-2">
+          <span className="text-slate-600 font-semibold">{company.name}</span>
+          <span className="px-1.5 py-0.5 rounded border border-amber-300/80 bg-amber-50 text-amber-700 text-[10px] font-bold tracking-wider">
+            {company.plan || 'TRIAL'}
           </span>
-          {company.industry && (
-            <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium border border-slate-200">
-              {company.industry}
-            </span>
-          )}
           {company.registrationNumber && (
-            <span className="hidden md:inline-block font-mono text-slate-500 text-[11px]">
+            <span className="hidden sm:inline-block font-mono text-slate-400">
               • Reg: {company.registrationNumber}
             </span>
           )}
         </div>
-
-        {/* Quick Multi-Company Workspace Selector */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          {companies.length > 1 && (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 rounded-xl text-xs font-semibold text-slate-700 shadow-2xs transition-colors cursor-pointer"
-              >
-                <Building className="w-3.5 h-3.5 text-blue-600" />
-                <span className="truncate max-w-[130px]">{company.name}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              {showWorkspaceMenu && (
-                <div className="absolute right-0 mt-1 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2.5 py-1">
-                    Select Company Workspace
-                  </div>
-                  <div className="space-y-1 max-h-56 overflow-y-auto">
-                    {companies.map((c) => {
-                      const isCurrent = c.id === company.id || c.name === company.name;
-                      return (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => {
-                            setShowWorkspaceMenu(false);
-                            onCompanyChange?.(c);
-                          }}
-                          className={`w-full text-left px-2.5 py-2 rounded-xl text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                            isCurrent
-                              ? 'bg-blue-50 text-blue-800 font-bold border border-blue-200'
-                              : 'text-slate-700 hover:bg-slate-50'
-                          }`}
-                        >
-                          <div className="truncate pr-2">
-                            <div>{c.name}</div>
-                            <div className="text-[10px] text-slate-400 font-normal">{c.industry || 'General Industry'}</div>
-                          </div>
-                          {isCurrent && <Check className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="pt-2 mt-1 border-t border-slate-100">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowWorkspaceMenu(false);
-                        setShowAddCompanyModal(true);
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>+ Register New Company</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setShowAddCompanyModal(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Company</span>
-          </button>
-        </div>
       </div>
 
-      {/* Main Header & Company Profile Card */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-100">
-          <div className="flex items-start gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-black text-2xl shadow-sm flex-shrink-0 mt-0.5">
-              {company.name ? company.name.charAt(0).toUpperCase() : 'C'}
-            </div>
-            <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                  {company.name}
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full border border-emerald-300 bg-emerald-50 text-emerald-700 text-xs font-bold">
-                  Active QMS Profile
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
-                <span>{company.industry || 'Manufacturing & Engineering'}</span>
-                {company.registrationNumber && (
-                  <span>• CIPC: <span className="font-mono text-slate-700 font-semibold">{company.registrationNumber}</span></span>
-                )}
-                {company.employeesCount && (
-                  <span>• Size: {company.employeesCount}</span>
-                )}
-              </p>
-
-              {/* Physical Address & Contact */}
-              <div className="flex items-center gap-4 text-xs text-slate-500 mt-2.5 flex-wrap">
-                {company.address && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{company.address}</span>
-                  </span>
-                )}
-                {company.email && (
-                  <span className="flex items-center gap-1 font-mono text-slate-600">
-                    <Globe className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{company.email}</span>
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Actions in Header */}
-          <div className="flex items-center gap-2.5 flex-wrap self-start lg:self-auto">
-            <button
-              onClick={() => onNavigate('profile')}
-              className="px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold shadow-2xs transition-colors cursor-pointer"
-            >
-              Company Profile Settings
-            </button>
-            <button
-              onClick={handleDemoClick}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition-colors cursor-pointer"
-            >
-              {demoDataLoaded ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="text-emerald-700 font-bold">Demo Data Ready</span>
-                </>
-              ) : (
-                <>
-                  <Database className="w-3.5 h-3.5 text-slate-600" />
-                  <span>Load Demo Data</span>
-                </>
-              )}
-            </button>
-          </div>
+      {/* Main Header Row */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            {company.name}
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Quality Management System — Wednesday, 16 September 2026
+          </p>
         </div>
 
-        {/* ISO Standards in Scope Badges Row */}
-        <div className="pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold text-slate-600 mr-1">Compliance Scope:</span>
-            {isoScopes.map((scope) => (
-              <span
-                key={scope}
-                className="px-3 py-1 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1.5 shadow-2xs"
-              >
-                <Shield className="w-3.5 h-3.5 text-blue-600" />
-                <span>{scope}</span>
-              </span>
-            ))}
-          </div>
-
-          <div className="text-xs text-slate-400">
-            System Clock: <strong className="text-slate-600 font-mono">Wednesday, 16 September 2026</strong>
-          </div>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={handleDemoClick}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition-colors cursor-pointer"
+          >
+            {demoDataLoaded ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-emerald-700 font-bold">Demo Data Ready</span>
+              </>
+            ) : (
+              <>
+                <Database className="w-3.5 h-3.5 text-slate-600" />
+                <span>Load Demo Data</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
 
@@ -321,13 +192,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               AUDIT READINESS
             </div>
             <h2 className="text-lg sm:text-xl font-medium text-white tracking-tight">
-              Looking great! Nearly audit-ready.
+              {auditReadinessHeadline}
             </h2>
           </div>
 
           <div className="flex items-baseline">
             <span className="text-5xl sm:text-6xl font-extrabold tracking-tight text-white leading-none">
-              85
+              {auditReadinessScore}
             </span>
             <span className="text-2xl sm:text-3xl font-bold text-[#67e8f9] ml-1">
               %
@@ -339,8 +210,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="mt-6 relative z-10">
           <div className="w-full bg-[#072439] rounded-full h-3 overflow-hidden">
             <div
-              className="bg-[#22c55e] h-full rounded-full transition-all duration-700 ease-out"
-              style={{ width: '85%' }}
+              className={`h-full rounded-full transition-all duration-700 ease-out ${
+                auditReadinessScore >= 80
+                  ? 'bg-[#22c55e]'
+                  : auditReadinessScore >= 60
+                  ? 'bg-[#eab308]'
+                  : 'bg-[#ef4444]'
+              }`}
+              style={{ width: `${Math.max(4, Math.min(100, auditReadinessScore))}%` }}
             />
           </div>
           <div className="flex justify-between text-xs text-slate-300/80 font-mono mt-2">
@@ -512,11 +389,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </span>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-slate-900">70%</span>
+              <span className="text-3xl font-extrabold text-slate-900">{overallAuditScore}%</span>
               <span className="text-sm font-medium text-slate-600">Overall Score</span>
             </div>
             <div className="text-xs text-slate-500 mt-2">
-              Target: 80% • Document #: {compPrefix}-DC-012
+              {auditRows && auditRows.length > 0
+                ? `${auditRows.length} Processes Tracked • Target: 80%`
+                : 'No audit processes configured'}
             </div>
           </div>
 

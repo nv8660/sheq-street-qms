@@ -25,6 +25,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { AuditProcessRow, AuditReportItem, Company, AuditFindingItem, TurtleAnalysis } from '../../types';
+import { calculateOverallAuditScore, calculateAuditReadiness } from '../../utils/auditReadiness';
 
 interface AuditManagementViewProps {
   company: Company;
@@ -541,9 +542,9 @@ export const AuditManagementView: React.FC<AuditManagementViewProps> = ({
     onReorderRows(newRows);
   };
 
-  // Calculate overall score dynamically from scored rows
-  const scoredRows = rows.filter((r) => r.totalScore && r.totalScore !== '—');
-  const overallScoreVal = scoredRows.length > 0 ? 70 : 70; // Matches Screenshot 70%
+  // Calculate overall score & audit readiness dynamically from rows and reports
+  const overallScoreVal = calculateOverallAuditScore(rows);
+  const auditReadinessData = calculateAuditReadiness(rows, [], reports);
 
   // ==========================================
   // FULL-PAGE AUDIT REPORT EDITOR (PINNED IMAGES 1, 2, 3)
@@ -1340,8 +1341,31 @@ export const AuditManagementView: React.FC<AuditManagementViewProps> = ({
 
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-slate-600">Overall Score:</span>
-                <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-[#fee2e2] text-[#dc2626] border border-[#fca5a5]">
+                <span
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-colors ${
+                    overallScoreVal >= 80
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                      : overallScoreVal >= 60
+                      ? 'bg-amber-50 text-amber-700 border-amber-300'
+                      : 'bg-[#fee2e2] text-[#dc2626] border-[#fca5a5]'
+                  }`}
+                >
                   {overallScoreVal}%
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-600">Audit Readiness:</span>
+                <span
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-colors ${
+                    auditReadinessData.readinessScore >= 80
+                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                      : auditReadinessData.readinessScore >= 60
+                      ? 'bg-amber-50 text-amber-700 border-amber-300'
+                      : 'bg-red-50 text-red-700 border-red-200'
+                  }`}
+                >
+                  {auditReadinessData.readinessScore}%
                 </span>
               </div>
             </div>
