@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Clock,
   CheckCircle2,
   Database,
   AlertTriangle,
@@ -89,9 +88,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="flex items-center justify-between gap-2 text-xs font-medium text-slate-500">
         <div className="flex items-center gap-2">
           <span className="text-slate-600 font-semibold">{company.name}</span>
-          <span className="px-1.5 py-0.5 rounded border border-amber-300/80 bg-amber-50 text-amber-700 text-[10px] font-bold tracking-wider">
-            {company.plan || 'TRIAL'}
-          </span>
+          {company.plan && company.plan !== 'TRIAL' && company.plan !== 'Trial' && (
+            <span className="px-1.5 py-0.5 rounded border border-emerald-300/80 bg-emerald-50 text-emerald-700 text-[10px] font-bold tracking-wider">
+              {company.plan}
+            </span>
+          )}
           {company.registrationNumber && (
             <span className="hidden sm:inline-block font-mono text-slate-400">
               • Reg: {company.registrationNumber}
@@ -132,8 +133,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
 
-      {/* License Status Banner (Trial or Active Paid) */}
-      {company.plan && company.plan !== 'TRIAL' && company.plan !== 'Trial' ? (
+      {/* License Status Banner (Active Paid only; Free Trial banner removed from front page) */}
+      {company.plan && company.plan !== 'TRIAL' && company.plan !== 'Trial' && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
           <div className="flex items-start sm:items-center gap-3.5">
             <div className="w-8 h-8 rounded-full border border-emerald-300 flex items-center justify-center text-emerald-600 bg-emerald-100 flex-shrink-0 mt-0.5 sm:mt-0">
@@ -154,29 +155,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg shadow-xs transition-colors self-start sm:self-auto flex-shrink-0 cursor-pointer"
           >
             Manage Subscription
-          </button>
-        </div>
-      ) : (
-        <div className="bg-[#fffbeb] border border-[#fef08a] rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
-          <div className="flex items-start sm:items-center gap-3.5">
-            <div className="w-8 h-8 rounded-full border border-amber-300 flex items-center justify-center text-amber-600 flex-shrink-0 mt-0.5 sm:mt-0">
-              <Clock className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="font-bold text-amber-950 text-base leading-snug">
-                Free Trial Active
-              </div>
-              <div className="text-sm text-amber-800/90 leading-snug">
-                {company.daysRemaining || 13} days remaining — upgrade to keep full access.
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={() => onNavigate('billing-plan')}
-            className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-medium px-4 py-2 rounded-lg shadow-xs transition-colors self-start sm:self-auto flex-shrink-0 cursor-pointer"
-          >
-            Upgrade Now
           </button>
         </div>
       )}

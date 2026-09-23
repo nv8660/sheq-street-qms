@@ -23,8 +23,17 @@ import {
   ArrowUpRight,
   Sparkles,
   Loader2,
+  Printer,
+  FileDown,
 } from 'lucide-react';
 import { Company } from '../../types';
+import {
+  downloadControlledDocumentPDF,
+  downloadControlledDocumentDoc,
+  downloadControlledDocumentText,
+  downloadOriginalUploadedFile,
+  exportMasterDocumentRegisterCSV,
+} from '../../utils/documentExport';
 
 export interface DocumentItem {
   id: string;
@@ -56,6 +65,11 @@ export interface ProcedureItem {
   owner: string;
   approvedDate: string;
   nextReview: string;
+  content?: string;
+  author?: string;
+  approver?: string;
+  fileName?: string;
+  fileData?: string;
 }
 
 // Initial 2 Procedures (matching screenshot badge 2)
@@ -457,6 +471,7 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
   const [isProcModalOpen, setIsProcModalOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<DocumentItem | null>(null);
   const [uploadSuccessMsg, setUploadSuccessMsg] = useState('');
+  const [activeDropdownDocId, setActiveDropdownDocId] = useState<string | null>(null);
 
   // Upload Choice Modal State (Matching Pinned Image)
   const [isUploadChoiceModalOpen, setIsUploadChoiceModalOpen] = useState(false);
@@ -763,6 +778,60 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
     setIsProcModalOpen(false);
   };
 
+  const showNotice = (msg: string) => {
+    setUploadSuccessMsg(msg);
+    setTimeout(() => {
+      setUploadSuccessMsg((curr) => (curr === msg ? '' : curr));
+    }, 4500);
+  };
+
+  const handlePreviewProcedure = (proc: ProcedureItem) => {
+    setPreviewDoc({
+      id: proc.id,
+      docNumber: proc.docNumber,
+      title: proc.title,
+      category: 'SOP',
+      revision: proc.revision,
+      status: proc.status,
+      owner: proc.owner,
+      approvedDate: proc.approvedDate,
+      nextReview: proc.nextReview,
+      clause: proc.clause,
+      author: proc.owner,
+      approver: 'Managing Director / Top Management',
+      content: proc.content,
+    });
+  };
+
+  const handleDeleteDoc = (id: string) => {
+    const docToDelete = documents.find((d) => d.id === id);
+    if (!docToDelete) return;
+    if (window.confirm(`Are you sure you want to remove "${docToDelete.docNumber} - ${docToDelete.title}" from the register?`)) {
+      setDocuments(documents.filter((d) => d.id !== id));
+      showNotice(`Document "${docToDelete.docNumber}" removed from register.`);
+      if (previewDoc?.id === id) {
+        setPreviewDoc(null);
+      }
+    }
+  };
+
+  const handleExportRegister = () => {
+    exportMasterDocumentRegisterCSV(documents, company);
+    showNotice(`📥 Exporting Master Document Register (${documents.length} controlled documents) as CSV...`);
+  };
+
+  // Close download dropdown menu on click outside
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.dropdown-action-container')) {
+        setActiveDropdownDocId(null);
+      }
+    };
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, []);
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-200">
       {/* Top Breadcrumb */}
@@ -905,6 +974,16 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
                 <Upload className="w-4 h-4 text-slate-700" />
                 <span>Upload Procedure</span>
               </button>
+
+              <button
+                type="button"
+                onClick={handleExportRegister}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg text-sm font-medium text-slate-800 shadow-2xs transition-colors cursor-pointer"
+                title="Export Document Register"
+              >
+                <Download className="w-4 h-4 text-emerald-600" />
+                <span>Export Register</span>
+              </button>
             </div>
 
             <div className="relative">
@@ -961,13 +1040,88 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <button
-                            onClick={() => alert(`Opening controlled procedure document ${proc.docNumber}`)}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
-                            title="View Procedure"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5 dropdown-action-container">
+                            <button
+                              type="button"
+                              onClick={() => handlePreviewProcedure(proc)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-lg text-xs font-semibold border border-slate-200 transition-colors cursor-pointer"
+                              title="View / Preview Procedure"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">View</span>
+                            </button>
+
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveDropdownDocId(activeDropdownDocId === proc.id ? null : proc.id);
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold border border-blue-200 transition-colors cursor-pointer"
+                                title="Download Procedure"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                <span>Download</span>
+                                <ChevronDown className="w-3 h-3 text-blue-500" />
+                              </button>
+
+                              {activeDropdownDocId === proc.id && (
+                                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 text-xs text-left animate-in fade-in zoom-in-95 duration-100">
+                                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                                    Download Format
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      downloadControlledDocumentPDF(
+                                        { ...proc, category: 'SOP', approver: 'Top Management' },
+                                        company
+                                      );
+                                      showNotice(`📥 Downloading procedure "${proc.docNumber}" as PDF...`);
+                                      setActiveDropdownDocId(null);
+                                    }}
+                                    className="w-full px-3 py-2 text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 text-left cursor-pointer transition-colors"
+                                  >
+                                    <FileDown className="w-3.5 h-3.5 text-red-500" />
+                                    <span>Download PDF</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      downloadControlledDocumentDoc(
+                                        { ...proc, category: 'SOP', approver: 'Top Management' },
+                                        company
+                                      );
+                                      showNotice(`📥 Downloading procedure "${proc.docNumber}" as Word document...`);
+                                      setActiveDropdownDocId(null);
+                                    }}
+                                    className="w-full px-3 py-2 text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 text-left cursor-pointer transition-colors"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 text-blue-600" />
+                                    <span>Word (.doc)</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      downloadControlledDocumentText(
+                                        { ...proc, category: 'SOP', approver: 'Top Management' },
+                                        company
+                                      );
+                                      showNotice(`📥 Downloading procedure "${proc.docNumber}" as Markdown...`);
+                                      setActiveDropdownDocId(null);
+                                    }}
+                                    className="w-full px-3 py-2 text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 text-left cursor-pointer transition-colors"
+                                  >
+                                    <Book className="w-3.5 h-3.5 text-slate-500" />
+                                    <span>Markdown (.md)</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1038,6 +1192,16 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
               >
                 <Upload className="w-4 h-4 text-slate-700" />
                 <span>Upload Document</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportRegister}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg text-sm font-medium text-slate-800 shadow-2xs transition-colors cursor-pointer"
+                title="Export Master Document Register to CSV"
+              >
+                <Download className="w-4 h-4 text-emerald-600" />
+                <span>Export Register</span>
               </button>
             </div>
 
@@ -1145,13 +1309,103 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
                         </td>
                         <td className="py-3 px-4 text-xs text-slate-600">{doc.owner}</td>
                         <td className="py-3 px-4 text-right">
-                          <button
-                            onClick={() => setPreviewDoc(doc)}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
-                            title="View Document"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5 dropdown-action-container">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewDoc(doc)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-lg text-xs font-semibold border border-slate-200 transition-colors cursor-pointer"
+                              title="View / Preview Document"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">View</span>
+                            </button>
+
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveDropdownDocId(activeDropdownDocId === doc.id ? null : doc.id);
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold border border-blue-200 transition-colors cursor-pointer"
+                                title="Download Document"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                <span>Download</span>
+                                <ChevronDown className="w-3 h-3 text-blue-500" />
+                              </button>
+
+                              {activeDropdownDocId === doc.id && (
+                                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 text-xs text-left animate-in fade-in zoom-in-95 duration-100">
+                                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                                    Download Format
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      downloadControlledDocumentPDF(doc, company);
+                                      showNotice(`📥 Downloading "${doc.docNumber}" as PDF...`);
+                                      setActiveDropdownDocId(null);
+                                    }}
+                                    className="w-full px-3 py-2 text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 text-left cursor-pointer transition-colors"
+                                  >
+                                    <FileDown className="w-3.5 h-3.5 text-red-500" />
+                                    <span>Download PDF</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      downloadControlledDocumentDoc(doc, company);
+                                      showNotice(`📥 Downloading "${doc.docNumber}" as Word document...`);
+                                      setActiveDropdownDocId(null);
+                                    }}
+                                    className="w-full px-3 py-2 text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 text-left cursor-pointer transition-colors"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 text-blue-600" />
+                                    <span>Word (.doc)</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      downloadControlledDocumentText(doc, company);
+                                      showNotice(`📥 Downloading "${doc.docNumber}" as Markdown...`);
+                                      setActiveDropdownDocId(null);
+                                    }}
+                                    className="w-full px-3 py-2 text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 text-left cursor-pointer transition-colors"
+                                  >
+                                    <Book className="w-3.5 h-3.5 text-slate-500" />
+                                    <span>Markdown (.md)</span>
+                                  </button>
+
+                                  {doc.fileName && doc.fileData && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        downloadOriginalUploadedFile(doc);
+                                        showNotice(`📥 Downloading original file "${doc.fileName}"...`);
+                                        setActiveDropdownDocId(null);
+                                      }}
+                                      className="w-full px-3 py-2 text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 text-left cursor-pointer font-medium border-t border-slate-100 transition-colors"
+                                    >
+                                      <Download className="w-3.5 h-3.5 text-emerald-600" />
+                                      <span>Original File</span>
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDoc(doc.id)}
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Document"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1476,10 +1730,11 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
       {/* Modal: Document Preview Modal */}
       {previewDoc && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in duration-150 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between pb-4 border-b border-slate-100">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200 animate-in fade-in duration-150 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-slate-100 gap-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                   <span className="font-mono font-bold text-sm text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
                     {previewDoc.docNumber}
                   </span>
@@ -1498,18 +1753,59 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
                     {previewDoc.status}
                   </span>
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">{previewDoc.title}</h3>
+                <h3 className="text-xl font-bold text-slate-900 leading-snug">{previewDoc.title}</h3>
               </div>
-              <button
-                type="button"
-                onClick={() => setPreviewDoc(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+
+              {/* Header Action Buttons */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadControlledDocumentPDF(previewDoc, company);
+                    showNotice(`📥 Downloading "${previewDoc.docNumber} - ${previewDoc.title}" as PDF...`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  title="Download print-ready PDF"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>PDF</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadControlledDocumentDoc(previewDoc, company);
+                    showNotice(`📥 Downloading "${previewDoc.docNumber}" as Word document (.doc)...`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 transition-colors cursor-pointer"
+                  title="Download Word Document"
+                >
+                  <FileText className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Word</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => downloadControlledDocumentPDF(previewDoc, company)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+                  title="Print Controlled Document"
+                >
+                  <Printer className="w-4 h-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPreviewDoc(null)}
+                  className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors"
+                  title="Close Preview"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-4 text-xs border-b border-slate-100 bg-slate-50/70 -mx-6 px-6">
+            {/* Metadata Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3.5 text-xs border-b border-slate-100 bg-slate-50/70 -mx-6 sm:-mx-7 px-6 sm:px-7">
               <div>
                 <span className="text-slate-500 font-medium block">Revision</span>
                 <span className="font-semibold text-slate-800">{previewDoc.revision}</span>
@@ -1530,44 +1826,147 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
               </div>
             </div>
 
-            {/* Original File Download/View if uploaded as-is */}
+            {/* Quick Action Toolbar */}
+            <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <FileCheck className="w-4 h-4 text-blue-600 shrink-0" />
+                <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
+                  Document Actions:
+                </span>
+                <span className="text-slate-500 hidden sm:inline">Download or export controlled copy</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadControlledDocumentPDF(previewDoc, company);
+                    showNotice(`📥 Downloading "${previewDoc.docNumber}" as PDF...`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-xs transition-colors cursor-pointer shadow-2xs"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download PDF</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadControlledDocumentDoc(previewDoc, company);
+                    showNotice(`📥 Downloading "${previewDoc.docNumber}" as Word (.doc)...`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition-colors cursor-pointer shadow-2xs"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Download Word (.doc)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadControlledDocumentText(previewDoc, company);
+                    showNotice(`📥 Downloading "${previewDoc.docNumber}" as Markdown (.md)...`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs transition-colors cursor-pointer border border-slate-300 shadow-2xs"
+                >
+                  <Book className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Markdown (.md)</span>
+                </button>
+
+                {previewDoc.fileName && previewDoc.fileData && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      downloadOriginalUploadedFile(previewDoc);
+                      showNotice(`📥 Downloading original file "${previewDoc.fileName}"...`);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs transition-colors cursor-pointer shadow-2xs"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Original ({previewDoc.fileName.split('.').pop()?.toUpperCase()})</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Original File Download Card if uploaded as-is */}
             {previewDoc.fileName && (
-              <div className="mt-4 p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex items-center justify-between text-xs">
+              <div className="mt-3 p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 text-blue-900">
                   <FileText className="w-4 h-4 text-blue-600 shrink-0" />
                   <span className="font-semibold truncate max-w-xs">{previewDoc.fileName}</span>
-                  <span className="text-blue-600 text-[11px] font-medium">(Original file)</span>
+                  <span className="text-blue-600 text-[11px] font-medium">(Original file attachment)</span>
                 </div>
                 {previewDoc.fileData && (
-                  <a
-                    href={previewDoc.fileData}
-                    download={previewDoc.fileName}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      downloadOriginalUploadedFile(previewDoc);
+                      showNotice(`📥 Downloading original file "${previewDoc.fileName}"...`);
+                    }}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition-colors cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>Download</span>
-                  </a>
+                    <span>Download Original</span>
+                  </button>
                 )}
               </div>
             )}
 
+            {/* Document Content */}
             <div className="pt-4">
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                Document Content
-              </h4>
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 font-mono text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Document Content
+                </h4>
+                <span className="text-[11px] text-slate-400 font-mono">
+                  ISO 9001:2015 Controlled Record
+                </span>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 font-mono text-xs text-slate-800 whitespace-pre-wrap leading-relaxed max-h-72 overflow-y-auto">
                 {previewDoc.content || `# ${previewDoc.title}\n\n## 1. Scope & Purpose\nControlled document registered under ${previewDoc.clause}.\n\n## 2. Custodian\n${previewDoc.owner}`}
               </div>
             </div>
 
-            <div className="flex justify-end pt-5 mt-4 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setPreviewDoc(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-sm font-semibold cursor-pointer"
-              >
-                Close Preview
-              </button>
+            {/* Modal Footer with Actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-5 mt-4 border-t border-slate-100">
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>ISO 9001:2015 Clause 7.5 Controlled Document • Authorized</span>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadControlledDocumentPDF(previewDoc, company);
+                    showNotice(`📥 Downloading "${previewDoc.docNumber}" as PDF...`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download PDF</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadControlledDocumentDoc(previewDoc, company);
+                    showNotice(`📥 Downloading "${previewDoc.docNumber}" as Word document...`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer border border-slate-300 transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Word (.doc)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPreviewDoc(null)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                >
+                  Close Preview
+                </button>
+              </div>
             </div>
           </div>
         </div>

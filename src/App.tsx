@@ -590,25 +590,67 @@ export function App() {
     setProcesses(processes.filter((p) => p.id !== id));
   };
 
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  const handleNavigate = (tab: NavigationTab) => {
+    setActiveTab(tab);
+    scrollToTop();
+  };
+
+  const handleUpdateCompany = (updated: Partial<Company>) => {
+    setCompany((prev) => {
+      const next = { ...prev, ...updated };
+      try {
+        localStorage.setItem('sheq_company', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setCompanies((prev) => {
+      const next = prev.map((c) => (c.id === company.id ? { ...c, ...updated } : c));
+      try {
+        localStorage.setItem('sheq_companies_list', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleUpdateUser = (updated: Partial<AuthUser>) => {
+    setCurrentUser((prev) => {
+      const nextUser: AuthUser = prev
+        ? { ...prev, ...updated }
+        : {
+            id: 'usr-1',
+            name: updated.name || 'NAVEEN .V',
+            email: updated.email || 'nv8660970099@gmail.com',
+            phone: updated.phone || '+27 82 459 2810',
+            role: updated.role || 'SHEQ Quality Lead / Admin',
+            companyName: company?.name || 'NK Quality Systems',
+          };
+      try {
+        localStorage.setItem('sheq_auth_user', JSON.stringify(nextUser));
+      } catch {}
+      return nextUser;
+    });
+  };
+
+  const renderDashboard = () => (
+    <DashboardView
+      company={company}
+      companies={companies}
+      ncrs={ncrs}
+      auditRows={auditRows}
+      processes={processes}
+      onNavigate={handleNavigate}
+      onLoadDemoData={handleLoadDemoData}
+      onAddCompany={handleAddNewCompany}
+      onCompanyChange={handleSwitchCompany}
+    />
+  );
+
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return (
-          <DashboardView
-            company={company}
-            companies={companies}
-            ncrs={ncrs}
-            auditRows={auditRows}
-            processes={processes}
-            onNavigate={(tab) => {
-              setActiveTab(tab);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            onLoadDemoData={handleLoadDemoData}
-            onAddCompany={handleAddNewCompany}
-            onCompanyChange={handleSwitchCompany}
-          />
-        );
+        return renderDashboard();
       case 'policy-objectives':
         return <PolicyObjectivesView company={company} />;
       case 'process-control':
@@ -665,47 +707,14 @@ export function App() {
             onDeleteReview={handleDeleteReview}
           />
         );
-
       case 'profile':
         return (
           <ProfileView
             company={company}
             companies={companies}
             user={currentUser}
-            onUpdateUser={(updated) => {
-              setCurrentUser((prev) => {
-                const nextUser: AuthUser = prev
-                  ? { ...prev, ...updated }
-                  : {
-                      id: 'usr-1',
-                      name: updated.name || 'NAVEEN .V',
-                      email: updated.email || 'nv8660970099@gmail.com',
-                      phone: updated.phone || '+27 82 459 2810',
-                      role: updated.role || 'SHEQ Quality Lead / Admin',
-                      companyName: company?.name || 'NK Quality Systems',
-                    };
-                try {
-                  localStorage.setItem('sheq_auth_user', JSON.stringify(nextUser));
-                } catch {}
-                return nextUser;
-              });
-            }}
-            onUpdateCompany={(updated) => {
-              setCompany((prev) => {
-                const next = { ...prev, ...updated };
-                try {
-                  localStorage.setItem('sheq_company', JSON.stringify(next));
-                } catch {}
-                return next;
-              });
-              setCompanies((prev) => {
-                const next = prev.map((c) => (c.id === company.id ? { ...c, ...updated } : c));
-                try {
-                  localStorage.setItem('sheq_companies_list', JSON.stringify(next));
-                } catch {}
-                return next;
-              });
-            }}
+            onUpdateUser={handleUpdateUser}
+            onUpdateCompany={handleUpdateCompany}
             onAddCompany={handleAddNewCompany}
             onCompanyChange={handleSwitchCompany}
             onLogout={handleLogout}
@@ -716,22 +725,7 @@ export function App() {
           <SettingsView
             company={company}
             companies={companies}
-            onUpdateCompany={(updated) => {
-              setCompany((prev) => {
-                const next = { ...prev, ...updated };
-                try {
-                  localStorage.setItem('sheq_company', JSON.stringify(next));
-                } catch {}
-                return next;
-              });
-              setCompanies((prev) => {
-                const next = prev.map((c) => (c.id === company.id ? { ...c, ...updated } : c));
-                try {
-                  localStorage.setItem('sheq_companies_list', JSON.stringify(next));
-                } catch {}
-                return next;
-              });
-            }}
+            onUpdateCompany={handleUpdateCompany}
             onAddCompany={handleAddNewCompany}
             onCompanyChange={handleSwitchCompany}
             onDeleteCompany={handleDeleteCompany}
@@ -741,49 +735,21 @@ export function App() {
         return (
           <BillingPlanView
             company={company}
-            onUpdateCompany={(updated) => {
-              setCompany((prev) => {
-                const next = { ...prev, ...updated };
-                try {
-                  localStorage.setItem('sheq_company', JSON.stringify(next));
-                } catch {}
-                return next;
-              });
-            }}
-            onNavigate={(tab) => {
-              setActiveTab(tab);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onUpdateCompany={handleUpdateCompany}
+            onNavigate={handleNavigate}
           />
         );
       case 'document-control':
         return <DocumentControlView company={company} />;
       case 'tutorial-centre':
       case 'video-tutorials':
-        return (
-          <TutorialCentreView
-            company={company}
-            onNavigate={(tab) => {
-              setActiveTab(tab);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
-        );
+        return <TutorialCentreView company={company} onNavigate={handleNavigate} />;
       case 'iso-toolkit':
       case 'qms-guidelines':
       case 'help-support':
         return <ResourcesView company={company} tab={activeTab} />;
       default:
-        return (
-          <DashboardView
-            company={company}
-            onNavigate={(tab) => {
-              setActiveTab(tab);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            onLoadDemoData={handleLoadDemoData}
-          />
-        );
+        return renderDashboard();
     }
   };
 
@@ -801,23 +767,19 @@ export function App() {
         loginNotice={loginAlertNotice}
         onDismissNotice={() => setLoginAlertNotice(null)}
         onSelectMode={(mode) => {
-          if (mode === 'consultant') {
-            setSessionMode('consultant');
-            sessionStorage.setItem('sheq_session_mode', 'consultant');
-          } else if (mode === 'auditor') {
-            setSessionMode('auditor');
-            sessionStorage.setItem('sheq_session_mode', 'auditor');
+          if (mode === 'consultant' || mode === 'auditor') {
+            setSessionMode(mode);
+            sessionStorage.setItem('sheq_session_mode', mode);
           } else {
             setSessionMode('management');
             sessionStorage.setItem('sheq_session_mode', 'management');
             setActiveTab('dashboard');
           }
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          scrollToTop();
         }}
         onNavigateTutorial={() => {
           setSessionMode('management');
-          setActiveTab('tutorial-centre');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          handleNavigate('tutorial-centre');
         }}
       />
     );
@@ -832,12 +794,11 @@ export function App() {
         onBackToModeSelection={() => {
           setSessionMode('selection');
           sessionStorage.setItem('sheq_session_mode', 'selection');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          scrollToTop();
         }}
         onNavigateTutorial={() => {
           setSessionMode('management');
-          setActiveTab('tutorial-centre');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          handleNavigate('tutorial-centre');
         }}
       />
     );
@@ -852,7 +813,7 @@ export function App() {
         onBackToModeSelection={() => {
           setSessionMode('selection');
           sessionStorage.setItem('sheq_session_mode', 'selection');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          scrollToTop();
         }}
       />
     );
