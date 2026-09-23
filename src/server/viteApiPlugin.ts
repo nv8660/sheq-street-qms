@@ -7,6 +7,18 @@ import {
 } from './emailService';
 
 export function viteApiPlugin(): Plugin {
+  // Safeguard dev server from unhandled rejections or socket drops
+  if (!process.listenerCount('unhandledRejection')) {
+    process.on('unhandledRejection', (reason) => {
+      console.warn('[DEV SERVER] Unhandled rejection caught:', reason);
+    });
+  }
+  if (!process.listenerCount('uncaughtException')) {
+    process.on('uncaughtException', (err) => {
+      console.warn('[DEV SERVER] Uncaught exception caught:', err);
+    });
+  }
+
   return {
     name: 'sheq-api-plugin',
     configureServer(server: ViteDevServer) {
@@ -18,9 +30,9 @@ export function viteApiPlugin(): Plugin {
           return next();
         }
 
-        // Helper to read JSON request body
+        // Helper to read JSON request body safely
         const readBody = async (): Promise<any> => {
-          return new Promise((resolve, reject) => {
+          return new Promise((resolve) => {
             let body = '';
             req.on('data', (chunk) => {
               body += chunk.toString();
@@ -28,18 +40,26 @@ export function viteApiPlugin(): Plugin {
             req.on('end', () => {
               try {
                 resolve(body ? JSON.parse(body) : {});
-              } catch (e) {
-                reject(e);
+              } catch {
+                resolve({});
               }
             });
-            req.on('error', reject);
+            req.on('error', (err) => {
+              console.warn('[DEV SERVER] Request stream error:', err);
+              resolve({});
+            });
           });
         };
 
         const sendJson = (status: number, data: any) => {
-          res.statusCode = status;
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify(data));
+          if (res.writableEnded || res.destroyed) return;
+          try {
+            res.statusCode = status;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(data));
+          } catch (err) {
+            console.warn('[DEV SERVER] Response error:', err);
+          }
         };
 
         try {
