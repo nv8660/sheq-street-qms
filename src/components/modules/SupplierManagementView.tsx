@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Truck,
   Plus,
@@ -159,6 +159,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
   const [aiCount, setAiCount] = useState<number>(4);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiGeneratedPreview, setAiGeneratedPreview] = useState<Array<Partial<SupplierItem> & { selected?: boolean }>>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const compPrefix = company?.name ? company.name.split(' ').map((w) => w[0]).join('').slice(0, 3).toUpperCase() : 'NK';
 
@@ -305,16 +306,18 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
   };
 
   // AI Generation & Import Handler
-  const handleRunAiProcess = async () => {
+  const handleRunAiProcess = async (textOverride?: string) => {
     setIsAiLoading(true);
+    const rawToUse = textOverride !== undefined ? textOverride : aiRawText;
+    const effectiveMode = textOverride !== undefined ? 'import' : aiMode;
     try {
       const resp = await fetch('/api/ai-generate-suppliers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          industry: aiMode === 'generate' ? aiIndustry : undefined,
-          prompt: aiMode === 'generate' ? aiPrompt : undefined,
-          rawText: aiMode === 'import' ? aiRawText : undefined,
+          industry: effectiveMode === 'generate' ? aiIndustry : undefined,
+          prompt: effectiveMode === 'generate' ? aiPrompt : undefined,
+          rawText: effectiveMode === 'import' ? rawToUse : undefined,
           count: aiCount,
           companyName: company.name || 'SHEQ Street',
         }),
@@ -338,6 +341,33 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
       showToast('AI Service offline. Using ISO catalog fallback.');
     } finally {
       setIsAiLoading(false);
+    }
+  };
+
+  const handleFileUploadImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const fileName = file.name;
+    setAiMode('import');
+    setIsAiModalOpen(true);
+
+    try {
+      if (file.type === 'text/csv' || file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
+        const text = await file.text();
+        setAiRawText(text);
+        showToast(`📄 Loaded file "${fileName}". Running AI parser...`);
+        handleRunAiProcess(text);
+      } else {
+        const placeholder = `Document: ${fileName}\nExtracting vendor contacts and material commodities for ${company.name || 'organization'}`;
+        setAiRawText(placeholder);
+        showToast(`📄 Uploaded "${fileName}". Running AI parser...`);
+        handleRunAiProcess(placeholder);
+      }
+    } catch (err) {
+      showToast(`Error reading file: ${(err as Error).message}`);
+    } finally {
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -474,16 +504,17 @@ Swiftline Cross-Border Haulage, Gate 8 City Deep Terminal Johannesburg, Logistic
 
         {activeTab === 'asl' && (
           <div className="flex items-center gap-3">
-            {/* AI Import / Generate List Button */}
+            {/* AI Import Supply List Button */}
             <button
               onClick={() => {
+                setAiMode('import');
                 setAiGeneratedPreview([]);
                 setIsAiModalOpen(true);
               }}
               className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-700 hover:to-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-all cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
             >
               <Sparkles className="w-4 h-4 text-purple-200" />
-              <span>AI Import / Generate List</span>
+              <span>AI Import Supply List</span>
             </button>
 
             <button
@@ -559,24 +590,47 @@ Swiftline Cross-Border Haulage, Gate 8 City Deep Terminal Johannesburg, Logistic
 
           {/* Search and Table Container */}
           <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="relative flex-1 max-w-md">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex flex-1 items-center gap-2.5 flex-wrap">
+                <div className="relative flex-1 min-w-[240px] max-w-md">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search vendor, address, division or commodity..."
+                    className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* AI Import from File Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg shadow-xs cursor-pointer transition-colors"
+                  title="Upload .csv, .xlsx, .pdf, or .docx document"
+                >
+                  <Upload className="w-3.5 h-3.5 text-slate-500" />
+                  <span>AI Import from File</span>
+                </button>
                 <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search vendor, address, division or commodity..."
-                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUploadImport}
+                  accept=".csv,.xlsx,.xls,.pdf,.docx,.txt"
+                  className="hidden"
                 />
               </div>
-              <button
-                onClick={handleExportASL}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Export ASL</span>
-              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleExportASL}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Export ASL</span>
+                </button>
+              </div>
             </div>
 
             {/* Pinned Image Header Table */}
@@ -865,7 +919,7 @@ Swiftline Cross-Border Haulage, Gate 8 City Deep Terminal Johannesburg, Logistic
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-lg text-slate-900">
-                      AI Supplier List Generator & Smart Import
+                      AI Supply List Generator & Smart Import
                     </h3>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
                       ISO 9001 Compliant
@@ -909,7 +963,7 @@ Swiftline Cross-Border Haulage, Gate 8 City Deep Terminal Johannesburg, Logistic
                 }`}
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>AI Smart Import / Paste</span>
+                <span>AI Supply List Smart Import / Paste</span>
               </button>
             </div>
 
@@ -980,15 +1034,25 @@ Swiftline Cross-Border Haulage, Gate 8 City Deep Terminal Johannesburg, Logistic
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-semibold text-slate-800">
-                      Paste Raw Text, CSV, or Vendor List
+                      Upload Document or Paste Raw Text / CSV
                     </label>
-                    <button
-                      type="button"
-                      onClick={loadSampleImportText}
-                      className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold hover:underline cursor-pointer"
-                    >
-                      Load Sample Data
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold hover:underline cursor-pointer flex items-center gap-1"
+                      >
+                        <Upload className="w-3 h-3" />
+                        <span>Upload File</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={loadSampleImportText}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold hover:underline cursor-pointer"
+                      >
+                        Load Sample Data
+                      </button>
+                    </div>
                   </div>
                   <textarea
                     rows={4}

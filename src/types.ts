@@ -219,10 +219,13 @@ export interface ObjectiveItem {
 export interface StakeholderIssue {
   id: string;
   stakeholder: string;
-  needsAndExpectations: string;
+  needsAndExpectations?: string;
   category: 'INTERNAL' | 'EXTERNAL';
-  riskOpportunity: string;
-  actionPlan: string;
+  riskOpportunity?: string;
+  actionPlan?: string;
+  issueOfConcern?: string;
+  processAffected?: string;
+  treatmentMethod?: string;
 }
 
 export interface RiskItem {
@@ -231,9 +234,10 @@ export interface RiskItem {
   process: string;
   likelihood: number; // 1-5
   impact: number; // 1-5
-  riskScore: number; // likelihood * impact
+  riskScore: number; // Likelihood + Consequence - 1 (1-9 scale, e.g. 4+3=6)
   level: 'LOW' | 'MEDIUM' | 'HIGH';
   mitigation: string;
+  consequence?: number;
 }
 
 export interface ProcessFlowStep {
@@ -282,11 +286,15 @@ export interface OpportunityItem {
   potentialBenefit: string;
   feasibility: number; // 1-5
   impact: number; // 1-5
-  score: number; // feasibility * impact
+  score: number; // Impact + Likelihood - 1 (1-9 scale, e.g. 4+4=7)
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
   actionPlan: string;
   owner: string;
   targetDate: string;
+  process?: string;
+  consequence?: number;
+  likelihood?: number;
+  mitigation?: string;
 }
 
 export interface TeamMemberItem {

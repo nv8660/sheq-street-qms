@@ -349,8 +349,14 @@ export const NCRManagementView: React.FC<NCRManagementViewProps> = ({
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => onDeleteNCR(ncr.id)}
-                        className="hover:text-red-600 p-1 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteNCR(ncr.id);
+                          if (selectedNCR?.id === ncr.id) {
+                            setSelectedNCR(null);
+                          }
+                        }}
+                        className="hover:text-red-600 p-1 cursor-pointer transition-colors"
                         title="Delete NCR"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -710,7 +716,19 @@ export const NCRManagementView: React.FC<NCRManagementViewProps> = ({
               )}
             </div>
 
-            <div className="flex justify-end pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteNCR(selectedNCR.id);
+                  setSelectedNCR(null);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-semibold border border-red-200 transition-colors cursor-pointer"
+                title="Delete this NCR"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete NCR</span>
+              </button>
               <button
                 onClick={() => setSelectedNCR(null)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-sm font-medium transition-colors cursor-pointer"

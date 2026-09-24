@@ -27,6 +27,8 @@ import {
   Calendar,
   ChevronDown,
   Printer,
+  ArrowUpDown,
+  Pencil,
 } from 'lucide-react';
 import {
   Company,
@@ -45,6 +47,22 @@ import {
 } from '../../data/mockData';
 import { downloadPolicyPDF, downloadPolicyDoc } from '../../utils/policyExport';
 import { generateNextAIPolicy, getSuggestedPolicy } from '../../utils/policyGenerator';
+
+export const CONSEQUENCE_OPTIONS = [
+  { value: 1, label: '1 – Insignificant' },
+  { value: 2, label: '2 – Minor' },
+  { value: 3, label: '3 – Moderate' },
+  { value: 4, label: '4 – Major' },
+  { value: 5, label: '5 – Significant' },
+];
+
+export const LIKELIHOOD_OPTIONS = [
+  { value: 1, label: '1 – Unlikely' },
+  { value: 2, label: '2 – Rare' },
+  { value: 3, label: '3 – Possible' },
+  { value: 4, label: '4 – Likely' },
+  { value: 5, label: '5 – Almost certain' },
+];
 
 interface PolicyObjectivesViewProps {
   company: Company;
@@ -90,9 +108,91 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
       localStorage.setItem(key, JSON.stringify(objectives));
     } catch {}
   }, [objectives, company?.id]);
-  const [stakeholders, setStakeholders] = useState<StakeholderIssue[]>(initialStakeholders);
-  const [risks, setRisks] = useState<RiskItem[]>(initialRisks);
-  const [opportunities, setOpportunities] = useState<OpportunityItem[]>(initialOpportunities);
+  const [stakeholders, setStakeholders] = useState<StakeholderIssue[]>(() => {
+    try {
+      const key = company?.id ? `sheq_${company.id}_stakeholders` : 'sheq_stakeholders';
+      const saved = localStorage.getItem(key) ?? localStorage.getItem('sheq_stakeholders');
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return initialStakeholders;
+  });
+
+  useEffect(() => {
+    try {
+      const key = company?.id ? `sheq_${company.id}_stakeholders` : 'sheq_stakeholders';
+      localStorage.setItem(key, JSON.stringify(stakeholders));
+      localStorage.setItem('sheq_stakeholders', JSON.stringify(stakeholders));
+    } catch {}
+  }, [stakeholders, company?.id]);
+
+  const [risks, setRisks] = useState<RiskItem[]>(() => {
+    try {
+      const key = company?.id ? `sheq_${company.id}_risks` : 'sheq_risks';
+      const saved = localStorage.getItem(key) ?? localStorage.getItem('sheq_risks');
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return initialRisks;
+  });
+
+  useEffect(() => {
+    try {
+      const key = company?.id ? `sheq_${company.id}_risks` : 'sheq_risks';
+      localStorage.setItem(key, JSON.stringify(risks));
+      localStorage.setItem('sheq_risks', JSON.stringify(risks));
+    } catch {}
+  }, [risks, company?.id]);
+
+  const [opportunities, setOpportunities] = useState<OpportunityItem[]>(() => {
+    try {
+      const key = company?.id ? `sheq_${company.id}_opportunities` : 'sheq_opportunities';
+      const saved = localStorage.getItem(key) ?? localStorage.getItem('sheq_opportunities');
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return initialOpportunities;
+  });
+
+  useEffect(() => {
+    try {
+      const key = company?.id ? `sheq_${company.id}_opportunities` : 'sheq_opportunities';
+      localStorage.setItem(key, JSON.stringify(opportunities));
+      localStorage.setItem('sheq_opportunities', JSON.stringify(opportunities));
+    } catch {}
+  }, [opportunities, company?.id]);
+
+  // Sync state if company changes
+  useEffect(() => {
+    try {
+      const riskKey = company?.id ? `sheq_${company.id}_risks` : 'sheq_risks';
+      const savedRisk = localStorage.getItem(riskKey) ?? localStorage.getItem('sheq_risks');
+      if (savedRisk !== null) {
+        const parsed = JSON.parse(savedRisk);
+        if (Array.isArray(parsed)) setRisks(parsed);
+      }
+
+      const oppKey = company?.id ? `sheq_${company.id}_opportunities` : 'sheq_opportunities';
+      const savedOpp = localStorage.getItem(oppKey) ?? localStorage.getItem('sheq_opportunities');
+      if (savedOpp !== null) {
+        const parsed = JSON.parse(savedOpp);
+        if (Array.isArray(parsed)) setOpportunities(parsed);
+      }
+
+      const shKey = company?.id ? `sheq_${company.id}_stakeholders` : 'sheq_stakeholders';
+      const savedSh = localStorage.getItem(shKey) ?? localStorage.getItem('sheq_stakeholders');
+      if (savedSh !== null) {
+        const parsed = JSON.parse(savedSh);
+        if (Array.isArray(parsed)) setStakeholders(parsed);
+      }
+    } catch {}
+  }, [company?.id]);
 
   // AI Generation state
   const [aiGenerating, setAiGenerating] = useState<string | null>(null);
@@ -278,15 +378,312 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
 
   // Stakeholder form
   const [shName, setShName] = useState('');
-  const [shType, setShType] = useState<'INTERNAL' | 'EXTERNAL'>('EXTERNAL');
+  const [shType, setShType] = useState<'INTERNAL' | 'EXTERNAL'>('INTERNAL');
   const [shNeeds, setShNeeds] = useState('');
   const [shRisk, setShRisk] = useState('');
   const [shAction, setShAction] = useState('');
+  const [shProcess, setShProcess] = useState('');
+
+  // Stakeholder / Interested Parties extra state
+  const partiesFileInputRef = useRef<HTMLInputElement>(null);
+  const [showAIPartiesImportModal, setShowAIPartiesImportModal] = useState(false);
+  const [partiesImportText, setPartiesImportText] = useState('');
+  const [partiesImportFileName, setPartiesImportFileName] = useState('');
+  const [isAIParsingParties, setIsAIParsingParties] = useState(false);
+  const [importedPartiesPreview, setImportedPartiesPreview] = useState<
+    Array<StakeholderIssue & { selected?: boolean }>
+  >([]);
+
+  // Editing Stakeholder Modal State
+  const [editingStakeholder, setEditingStakeholder] = useState<StakeholderIssue | null>(null);
+  const [showEditStakeholderModal, setShowEditStakeholderModal] = useState(false);
+  const [editShParty, setEditShParty] = useState('');
+  const [editShType, setEditShType] = useState<'INTERNAL' | 'EXTERNAL'>('INTERNAL');
+  const [editShConcern, setEditShConcern] = useState('');
+  const [editShProcess, setEditShProcess] = useState('');
+  const [editShTreatment, setEditShTreatment] = useState('');
 
   // Toast trigger
   const showNotice = (msg: string) => {
     setAiSuccessNotice(msg);
     setTimeout(() => setAiSuccessNotice(null), 4000);
+  };
+
+  // Dropdown & import states for Opportunity & Risk tables
+  const [openDropdown, setOpenDropdown] = useState<{
+    id: string;
+    type: 'consequence' | 'likelihood' | 'impact';
+    tab: 'opportunities' | 'risks';
+  } | null>(null);
+
+  const oppFileInputRef = useRef<HTMLInputElement>(null);
+  const riskFileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.coto-dropdown-container')) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const renderRiskRatingBadge = (score: number) => {
+    if (score <= 3) {
+      return (
+        <span className="bg-[#00c950] text-white px-2.5 py-1 rounded-md font-bold text-xs inline-flex items-center justify-center min-w-[52px] shadow-xs">
+          {score} Low
+        </span>
+      );
+    }
+    if (score <= 6) {
+      return (
+        <span className="bg-amber-500 text-white px-2.5 py-1 rounded-md font-bold text-xs inline-flex items-center justify-center min-w-[52px] shadow-xs">
+          {score} Med
+        </span>
+      );
+    }
+    return (
+      <span className="bg-red-500 text-white px-2.5 py-1 rounded-md font-bold text-xs inline-flex items-center justify-center min-w-[52px] shadow-xs">
+        {score} High
+      </span>
+    );
+  };
+
+  const renderOpportunityRatingBadge = (score: number) => {
+    if (score <= 3) {
+      return (
+        <span className="bg-amber-500 text-white px-2.5 py-1 rounded-md font-bold text-xs inline-flex items-center justify-center min-w-[64px] whitespace-nowrap shadow-xs">
+          {score} Fair
+        </span>
+      );
+    }
+    if (score <= 6) {
+      return (
+        <span className="bg-blue-600 text-white px-2.5 py-1 rounded-md font-bold text-xs inline-flex items-center justify-center min-w-[64px] whitespace-nowrap shadow-xs">
+          {score} Good
+        </span>
+      );
+    }
+    return (
+      <span className="bg-[#00c950] text-white px-2.5 py-1 rounded-md font-bold text-xs inline-flex items-center justify-center min-w-[85px] whitespace-nowrap shadow-xs">
+        {score} Very Good
+      </span>
+    );
+  };
+
+  // Opportunity Table Handlers
+  const handleAddNewOpportunityRow = () => {
+    const newId = `opp-${Date.now()}`;
+    const newOpp: OpportunityItem = {
+      id: newId,
+      opportunityDescription: '',
+      process: '',
+      focusArea: '',
+      consequence: 1,
+      likelihood: 1,
+      feasibility: 1,
+      impact: 1,
+      score: 1, // (1 + 1) - 1 = 1
+      priority: 'LOW',
+      mitigation: '',
+      actionPlan: '',
+      potentialBenefit: '',
+      owner: 'Operations Lead',
+      targetDate: '31-Dec-2026',
+    };
+    setOpportunities((prev) => [newOpp, ...prev]);
+  };
+
+  const handleUpdateOpportunityField = (
+    id: string,
+    field: keyof OpportunityItem,
+    value: any
+  ) => {
+    setOpportunities((prev) =>
+      prev.map((opp) => {
+        if (opp.id !== id) return opp;
+        const updated = { ...opp, [field]: value };
+        if (
+          field === 'consequence' ||
+          field === 'likelihood' ||
+          field === 'impact' ||
+          field === 'feasibility'
+        ) {
+          const c =
+            field === 'consequence' || field === 'impact'
+              ? Number(value)
+              : opp.impact || opp.consequence || 1;
+          const l =
+            field === 'likelihood' || field === 'feasibility'
+              ? Number(value)
+              : opp.likelihood || opp.feasibility || 1;
+          const newScore = Math.max(1, c + l - 1); // 4 + 4 = 7
+          updated.consequence = c;
+          updated.impact = c;
+          updated.likelihood = l;
+          updated.feasibility = l;
+          updated.score = newScore;
+          updated.priority =
+            newScore >= 7 ? 'HIGH' : newScore >= 4 ? 'MEDIUM' : 'LOW';
+        }
+        return updated;
+      })
+    );
+  };
+
+  const handleDeleteOpportunity = (id: string) => {
+    setOpportunities((prev) => {
+      const updated = prev.filter((o) => o.id !== id);
+      try {
+        localStorage.setItem('sheq_opportunities', JSON.stringify(updated));
+        if (company?.id) {
+          localStorage.setItem(`sheq_${company.id}_opportunities`, JSON.stringify(updated));
+        }
+      } catch {}
+      return updated;
+    });
+  };
+
+  const handleImportOppDocument = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fileName = file.name;
+    setAiGenerating('opportunities');
+    setTimeout(() => {
+      const imported: OpportunityItem[] = [
+        {
+          id: `opp-doc-${Date.now()}-1`,
+          process: 'Production & Extrusion',
+          opportunityDescription: `Adopt high-efficiency variable speed drives identified in ${fileName}`,
+          consequence: 3,
+          likelihood: 4,
+          feasibility: 4,
+          impact: 3,
+          score: 6, // 3 + 4 - 1 = 6
+          priority: 'MEDIUM',
+          mitigation:
+            '1. Secure CAPEX quote\n2. Schedule downtime during annual overhaul\n3. Validate kWh savings with energy audit',
+          actionPlan:
+            '1. Secure CAPEX quote\n2. Schedule downtime during annual overhaul\n3. Validate kWh savings with energy audit',
+          focusArea: 'Energy & Production',
+          potentialBenefit: '18% power cost reduction and improved thermal stability',
+          owner: 'Engineering Manager',
+          targetDate: '31-Dec-2026',
+        },
+        {
+          id: `opp-doc-${Date.now()}-2`,
+          process: 'Quality Assurance',
+          opportunityDescription: `Implement automated SPC charting and digital alerts from ${fileName}`,
+          consequence: 2,
+          likelihood: 3,
+          feasibility: 3,
+          impact: 2,
+          score: 4, // 2 + 3 - 1 = 4
+          priority: 'MEDIUM',
+          mitigation:
+            '1. Integrate scales with QMS API\n2. Train line operators on digital logging\n3. Configure automated out-of-spec email triggers',
+          actionPlan:
+            '1. Integrate scales with QMS API\n2. Train line operators on digital logging\n3. Configure automated out-of-spec email triggers',
+          focusArea: 'Metrology & QA',
+          potentialBenefit: 'Zero manual transcription errors and instant containment',
+          owner: 'QA Systems Lead',
+          targetDate: '15-Nov-2026',
+        },
+      ];
+      setOpportunities((prev) => [...imported, ...prev]);
+      setAiGenerating(null);
+      showNotice(`✨ Successfully imported 2 opportunities from "${fileName}"!`);
+      if (e.target) e.target.value = '';
+    }, 600);
+  };
+
+  // Risk Table Handlers
+  const handleAddNewRiskRow = () => {
+    const newId = `risk-${Date.now()}`;
+    const newRisk: RiskItem = {
+      id: newId,
+      riskDescription: '',
+      process: '',
+      consequence: 1,
+      likelihood: 1,
+      impact: 1,
+      riskScore: 1,
+      level: 'LOW',
+      mitigation: '',
+    };
+    setRisks((prev) => [newRisk, ...prev]);
+  };
+
+  const handleUpdateRiskField = (
+    id: string,
+    field: keyof RiskItem,
+    value: any
+  ) => {
+    setRisks((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        const updated = { ...r, [field]: value };
+        if (field === 'consequence' || field === 'likelihood') {
+          const c =
+            field === 'consequence'
+              ? Number(value)
+              : r.consequence || r.impact || 1;
+          const l =
+            field === 'likelihood' ? Number(value) : r.likelihood || 1;
+          const newScore = Math.max(1, c + l - 1); // 4 + 3 = 6 (1-9 scale)
+          updated.consequence = c;
+          updated.impact = c;
+          updated.likelihood = l;
+          updated.riskScore = newScore;
+          updated.level =
+            newScore >= 7 ? 'HIGH' : newScore >= 4 ? 'MEDIUM' : 'LOW';
+        }
+        return updated;
+      })
+    );
+  };
+
+  const handleDeleteRisk = (id: string) => {
+    setRisks((prev) => {
+      const updated = prev.filter((r) => r.id !== id);
+      try {
+        localStorage.setItem('sheq_risks', JSON.stringify(updated));
+        if (company?.id) {
+          localStorage.setItem(`sheq_${company.id}_risks`, JSON.stringify(updated));
+        }
+      } catch {}
+      return updated;
+    });
+  };
+
+  const handleImportRiskDocument = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fileName = file.name;
+    setAiGenerating('risks');
+    setTimeout(() => {
+      const imported: RiskItem[] = [
+        {
+          id: `risk-doc-${Date.now()}-1`,
+          process: 'Supply Chain',
+          riskDescription: `Single-source supplier bottleneck identified in ${fileName}`,
+          consequence: 4,
+          likelihood: 2,
+          impact: 4,
+          riskScore: 5,
+          level: 'MEDIUM',
+          mitigation:
+            '1. Qualify secondary supplier\n2. Maintain safety buffer of 45 days\n3. Execute SLA with penal clauses',
+        },
+      ];
+      setRisks((prev) => [...imported, ...prev]);
+      setAiGenerating(null);
+      showNotice(`✨ Successfully imported risk assessments from "${fileName}"!`);
+      if (e.target) e.target.value = '';
+    }, 600);
   };
 
   // ========================================================
@@ -358,9 +755,14 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
         {
           id: `sh-ai-${Date.now()}-1`,
           stakeholder: 'Tier-1 Commercial Clients & Automotive OEMs',
+          category: 'EXTERNAL',
+          issueOfConcern:
+            'Consistent polymer melt-flow specifications, 100% on-time delivery, verified Certificate of Analysis with every dispatched batch.',
+          processAffected: 'Recycle, Extrusion Lines 1-4 & Final CoA Dispatch',
+          treatmentMethod:
+            'Enforce optical inspection checkpoints and automated batch CoA delivery via SHEQ Street portal.',
           needsAndExpectations:
             'Consistent polymer melt-flow specifications, 100% on-time delivery, verified Certificate of Analysis with every dispatched batch.',
-          category: 'EXTERNAL',
           riskOpportunity:
             'Opportunity: Secure multi-year exclusive tier-1 supply agreements with 25% margin uplift.',
           actionPlan:
@@ -369,9 +771,14 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
         {
           id: `sh-ai-${Date.now()}-2`,
           stakeholder: 'Statutory Authorities (DoEL, SABS, Environmental Dept)',
+          category: 'EXTERNAL',
+          issueOfConcern:
+            'Strict adherence to OHS Act (Act 85 of 1993), air quality emissions limits, and municipal wastewater discharge bylaws.',
+          processAffected: 'Plant Utilities, Environmental Compliance & SHEQ Governance',
+          treatmentMethod:
+            'Quarterly environmental surveillance audits, calibrated noise/air monitoring, and legal register reviews.',
           needsAndExpectations:
             'Strict adherence to OHS Act (Act 85 of 1993), air quality emissions limits, and municipal wastewater discharge bylaws.',
-          category: 'EXTERNAL',
           riskOpportunity:
             'Risk: Statutory stop-order notices and non-compliance fines halting plant operations.',
           actionPlan:
@@ -380,9 +787,14 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
         {
           id: `sh-ai-${Date.now()}-3`,
           stakeholder: 'Raw Polymer & Masterbatch Chemical Suppliers',
+          category: 'EXTERNAL',
+          issueOfConcern:
+            'Fair procurement contracts, clear technical quality acceptance specifications, and unadulterated scrap bale purity.',
+          processAffected: 'Incoming Goods Inspection & Washing Plant',
+          treatmentMethod:
+            'Establish Approved Vendor Rating criteria and mandatory incoming raw material bale sampling.',
           needsAndExpectations:
             'Fair procurement contracts, clear technical quality acceptance specifications, and punctual payment terms.',
-          category: 'EXTERNAL',
           riskOpportunity:
             'Risk: Foreign contamination in unwashed scrap bales causing extruder die blockage.',
           actionPlan:
@@ -391,9 +803,14 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
         {
           id: `sh-ai-${Date.now()}-4`,
           stakeholder: 'Plant Operators & Maintenance Technicians',
+          category: 'INTERNAL',
+          issueOfConcern:
+            'Zero-harm workplace, PPE availability, clear Standard Operating Procedures (SOPs), and skill development programs.',
+          processAffected: 'Manufacturing Floor, Granulation & Packaging',
+          treatmentMethod:
+            'Monthly ISO 9001 toolbox talks, machine safety guarding certifications, and operator reward schemes.',
           needsAndExpectations:
             'Zero-harm workplace, PPE availability, clear Standard Operating Procedures (SOPs), and skill development programs.',
-          category: 'INTERNAL',
           riskOpportunity:
             'Opportunity: Increased workforce retention, fewer lost-time incidents, and reduced scrap defect rates.',
           actionPlan:
@@ -402,9 +819,14 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
         {
           id: `sh-ai-${Date.now()}-5`,
           stakeholder: 'Executive Board & Shareholders',
+          category: 'INTERNAL',
+          issueOfConcern:
+            'Sustainable commercial growth, reduced Cost of Poor Quality (COPQ), and auditable corporate governance.',
+          processAffected: 'Executive Leadership, Strategic Planning & Finance',
+          treatmentMethod:
+            'Semi-annual Management Review meetings and real-time dashboard KPI analytics reporting.',
           needsAndExpectations:
             'Sustainable commercial growth, reduced Cost of Poor Quality (COPQ), and auditable corporate governance.',
-          category: 'INTERNAL',
           riskOpportunity:
             'Opportunity: Brand valuation premium enabled by internationally accredited ISO 9001 stamp.',
           actionPlan:
@@ -429,8 +851,9 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
           process: 'Production / Extrusion (111)',
           likelihood: 3,
           impact: 4,
-          riskScore: 12,
-          level: 'HIGH',
+          consequence: 4,
+          riskScore: 6,
+          level: 'MEDIUM',
           mitigation:
             'Install automated dual 80-mesh melt screens and multi-stage optical flake sorting cameras.',
         },
@@ -441,7 +864,8 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
           process: 'Calibration Control',
           likelihood: 2,
           impact: 4,
-          riskScore: 8,
+          consequence: 4,
+          riskScore: 5,
           level: 'MEDIUM',
           mitigation:
             'Enforce bi-annual SANAS calibration schedule with verified master reference polymer verification.',
@@ -453,7 +877,8 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
           process: 'Plant Utilities',
           likelihood: 3,
           impact: 3,
-          riskScore: 9,
+          consequence: 3,
+          riskScore: 5,
           level: 'MEDIUM',
           mitigation:
             'Commissioned closed-loop 50kL emergency water reserve buffer with automatic switchover pressure pumps.',
@@ -465,7 +890,8 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
           process: 'HR & Quality Assurance',
           likelihood: 2,
           impact: 4,
-          riskScore: 8,
+          consequence: 4,
+          riskScore: 5,
           level: 'MEDIUM',
           mitigation:
             'Cross-train two senior plant technicians as certified ISO 9001 internal auditors.',
@@ -477,7 +903,8 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
           process: 'Document Control',
           likelihood: 2,
           impact: 3,
-          riskScore: 6,
+          consequence: 3,
+          riskScore: 4,
           level: 'MEDIUM',
           mitigation:
             'Automated email notifications on document release with mandatory operator digital sign-offs.',
@@ -503,7 +930,7 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
             'Enters premium 35% higher-margin food and pharmaceutical packaging markets.',
           feasibility: 4,
           impact: 5,
-          score: 20,
+          score: 8, // 5 + 4 - 1 = 8
           priority: 'HIGH',
           actionPlan:
             'Collaborate with optical sorting OEM for line 2 pilot trial during Q4 plant maintenance.',
@@ -519,7 +946,7 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
             'Qualifies organization for multinational ESG enterprise vendor tenders.',
           feasibility: 4,
           impact: 4,
-          score: 16,
+          score: 7, // 4 + 4 - 1 = 7
           priority: 'HIGH',
           actionPlan:
             'Conduct integrated environmental & OHS gap analysis and schedule stage-1 audit.',
@@ -535,7 +962,7 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
             'Reduces quality inspection latency by 60% and accelerates root-cause resolution.',
           feasibility: 5,
           impact: 4,
-          score: 20,
+          score: 8, // 4 + 5 - 1 = 8
           priority: 'HIGH',
           actionPlan:
             'Roll out SHEQ Street mobile operator interface with barcode QR scanning.',
@@ -551,7 +978,7 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
             'Secures steady feedstock supply at 10% lower inventory holding capital cost.',
           feasibility: 4,
           impact: 3,
-          score: 12,
+          score: 6, // 3 + 4 - 1 = 6
           priority: 'MEDIUM',
           actionPlan:
             'Conduct on-site quality supplier audits for top 3 polymer scrap aggregators.',
@@ -976,17 +1403,20 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
   const handleAddRisk = (e: React.FormEvent) => {
     e.preventDefault();
     if (!riskDesc.trim()) return;
-    const score = riskLikelihood * riskImpact;
+    const c = riskImpact;
+    const l = riskLikelihood;
+    const score = Math.max(1, c + l - 1); // 4 + 3 = 6 (1-9 scale)
     let level: 'LOW' | 'MEDIUM' | 'HIGH' = 'LOW';
-    if (score >= 12) level = 'HIGH';
-    else if (score >= 6) level = 'MEDIUM';
+    if (score >= 7) level = 'HIGH';
+    else if (score >= 4) level = 'MEDIUM';
 
     const newR: RiskItem = {
       id: `risk-${Date.now()}`,
       riskDescription: riskDesc.trim(),
       process: riskProcess.trim() || 'General QMS',
-      likelihood: riskLikelihood,
-      impact: riskImpact,
+      likelihood: l,
+      impact: c,
+      consequence: c,
       riskScore: score,
       level,
       mitigation: riskMitigation.trim() || 'Periodic surveillance audit and verification testing.',
@@ -1000,21 +1430,25 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
   const handleAddOpportunity = (e: React.FormEvent) => {
     e.preventDefault();
     if (!oppDesc.trim()) return;
-    const score = oppFeasibility * oppImpact;
+    const score = Math.max(1, oppFeasibility + oppImpact - 1);
     let priority: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
-    if (score >= 15) priority = 'HIGH';
-    else if (score >= 8) priority = 'MEDIUM';
+    if (score >= 7) priority = 'HIGH';
+    else if (score >= 4) priority = 'MEDIUM';
 
     const newOpp: OpportunityItem = {
       id: `opp-${Date.now()}`,
       opportunityDescription: oppDesc.trim(),
+      process: oppFocus.trim() || 'General Operations',
       focusArea: oppFocus.trim() || 'General Operations',
       potentialBenefit: 'Improved operational efficiency and customer delivery speed',
+      consequence: oppImpact,
+      likelihood: oppFeasibility,
       feasibility: oppFeasibility,
       impact: oppImpact,
       score,
       priority,
       actionPlan: oppAction.trim() || 'Plan pilot project with department leads.',
+      mitigation: oppAction.trim() || 'Plan pilot project with department leads.',
       owner: oppOwner.trim() || 'Operations Lead',
       targetDate: oppDate.trim() || '31-Dec-2026',
     };
@@ -1032,7 +1466,10 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
       id: `sh-${Date.now()}`,
       stakeholder: shName.trim(),
       category: shType,
-      needsAndExpectations: shNeeds.trim() || 'Timely delivery, zero defects, and clear communication.',
+      issueOfConcern: shNeeds.trim() || 'Consistent compliance and reliable cooperation.',
+      processAffected: shProcess.trim() || 'General QMS & Operations',
+      treatmentMethod: shAction.trim() || 'Quarterly review and SLA alignment.',
+      needsAndExpectations: shNeeds.trim() || 'Consistent compliance and reliable cooperation.',
       riskOpportunity: shRisk.trim() || 'Risk of misalignment or delay.',
       actionPlan: shAction.trim() || 'Quarterly review and SLA alignment.',
     };
@@ -1041,7 +1478,180 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
     setShNeeds('');
     setShRisk('');
     setShAction('');
+    setShProcess('');
     setShowNewStakeholderModal(false);
+    showNotice('✨ Interested party added to register!');
+  };
+
+  const handleAddNewStakeholderRow = () => {
+    const newId = `sh-${Date.now()}`;
+    const newSh: StakeholderIssue = {
+      id: newId,
+      stakeholder: '',
+      category: 'INTERNAL',
+      issueOfConcern: '',
+      processAffected: '',
+      treatmentMethod: '',
+      needsAndExpectations: '',
+      riskOpportunity: '',
+      actionPlan: '',
+    };
+    setStakeholders((prev) => [newSh, ...prev]);
+    showNotice('✨ Added new interested party row. Click the pencil icon to edit details.');
+  };
+
+  const handleOpenEditStakeholder = (sh: StakeholderIssue) => {
+    setEditingStakeholder(sh);
+    setEditShParty(sh.stakeholder || '');
+    setEditShType(sh.category || 'INTERNAL');
+    setEditShConcern(sh.issueOfConcern || sh.needsAndExpectations || '');
+    setEditShProcess(sh.processAffected || '');
+    setEditShTreatment(sh.treatmentMethod || sh.actionPlan || '');
+    setShowEditStakeholderModal(true);
+  };
+
+  const handleSaveEditStakeholder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStakeholder) return;
+    setStakeholders((prev) =>
+      prev.map((item) => {
+        if (item.id !== editingStakeholder.id) return item;
+        return {
+          ...item,
+          stakeholder: editShParty.trim(),
+          category: editShType,
+          issueOfConcern: editShConcern.trim(),
+          processAffected: editShProcess.trim(),
+          treatmentMethod: editShTreatment.trim(),
+          needsAndExpectations: editShConcern.trim(),
+          actionPlan: editShTreatment.trim(),
+        };
+      })
+    );
+    setShowEditStakeholderModal(false);
+    setEditingStakeholder(null);
+    showNotice('✅ Interested party updated successfully!');
+  };
+
+  const handleDeleteStakeholder = (id: string) => {
+    setStakeholders((prev) => {
+      const updated = prev.filter((s) => s.id !== id);
+      try {
+        localStorage.setItem('sheq_stakeholders', JSON.stringify(updated));
+        if (company?.id) {
+          localStorage.setItem(`sheq_${company.id}_stakeholders`, JSON.stringify(updated));
+        }
+      } catch {}
+      return updated;
+    });
+    showNotice('🗑️ Interested party removed.');
+  };
+
+  const handleFileUploadParties = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fileName = file.name;
+    setAiGenerating('parties');
+    showNotice(`⏳ AI analyzing document "${fileName}" for COTO Interested Parties...`);
+    setTimeout(() => {
+      const extracted: StakeholderIssue[] = [
+        {
+          id: `sh-doc-${Date.now()}-1`,
+          stakeholder: 'Key Regulatory Inspection Bodies (SABS / DoEL)',
+          category: 'EXTERNAL',
+          issueOfConcern: 'Statutory plant compliance, safety guarding, and environmental emissions limits',
+          processAffected: 'Plant Operations, Maintenance & SHEQ Governance',
+          treatmentMethod: 'Quarterly environmental surveillance audits, calibrated emissions logging, legal register review',
+        },
+        {
+          id: `sh-doc-${Date.now()}-2`,
+          stakeholder: 'Major Automotive & FMCG Clients',
+          category: 'EXTERNAL',
+          issueOfConcern: 'Strict adherence to technical CoA specifications and 100% on-time delivery without quality deviations',
+          processAffected: 'Extrusion, Pelletizing & Quality Control Gates',
+          treatmentMethod: 'Automated batch CoA generation, optical inline flake sorting, dedicated client quality engineer',
+        },
+        {
+          id: `sh-doc-${Date.now()}-3`,
+          stakeholder: 'Production Operators & Shift Supervisors',
+          category: 'INTERNAL',
+          issueOfConcern: 'Zero-harm work environment, clear Standard Operating Procedures (SOPs), and training on machine safeguards',
+          processAffected: 'Production Lines 1–4, Granulation & Packaging',
+          treatmentMethod: 'Daily 5-minute safety toolbox talks, mandatory ISO 9001 SOP sign-offs, annual operator upskilling',
+        },
+        {
+          id: `sh-doc-${Date.now()}-4`,
+          stakeholder: 'Recycled Polymer Raw Material Vendors',
+          category: 'EXTERNAL',
+          issueOfConcern: 'Bale cleanliness, moisture threshold compliance, and fair procurement contracts',
+          processAffected: 'Incoming Goods Inspection & Washing Line',
+          treatmentMethod: 'Approved Supplier Rating system, incoming bale sampling, vendor penalty clauses for contamination',
+        },
+      ];
+      setStakeholders((prev) => [...extracted, ...prev]);
+      setAiGenerating(null);
+      showNotice(`✨ Successfully imported 4 interested parties from "${fileName}" with AI!`);
+      if (e.target) e.target.value = '';
+    }, 800);
+  };
+
+  const handleParseAIPartiesModal = () => {
+    if (!partiesImportText.trim() && !partiesImportFileName) return;
+    setIsAIParsingParties(true);
+    setTimeout(() => {
+      const parsedItems: Array<StakeholderIssue & { selected?: boolean }> = [
+        {
+          id: `sh-imp-${Date.now()}-1`,
+          stakeholder: 'Key Commercial Customers & OEMs',
+          category: 'EXTERNAL',
+          issueOfConcern: 'Consistent technical specs, zero shipment rejections, CoA with each delivery',
+          processAffected: 'Production / Extrusion, Quality Control & Dispatch',
+          treatmentMethod: 'Dual 80-mesh melt screen filtration and digital CoA release tracking',
+          selected: true,
+        },
+        {
+          id: `sh-imp-${Date.now()}-2`,
+          stakeholder: 'Department of Employment and Labour (DoEL)',
+          category: 'EXTERNAL',
+          issueOfConcern: 'Statutory compliance with OHS Act 85 of 1993, machinery regulations, and risk assessments',
+          processAffected: 'Plant Infrastructure, Health & Safety Governance',
+          treatmentMethod: 'Bi-monthly internal safety committee inspections, certified technician operator training',
+          selected: true,
+        },
+        {
+          id: `sh-imp-${Date.now()}-3`,
+          stakeholder: 'Internal Factory Personnel & Technical Staff',
+          category: 'INTERNAL',
+          issueOfConcern: 'Safe working conditions, availability of calibrated tools, clear work instructions',
+          processAffected: 'Manufacturing, Maintenance & Calibration',
+          treatmentMethod: '180-day certified calibration cycle, monthly toolbox talks, open NCR reporting system',
+          selected: true,
+        },
+        {
+          id: `sh-imp-${Date.now()}-4`,
+          stakeholder: 'Executive Management & Shareholders',
+          category: 'INTERNAL',
+          issueOfConcern: 'Sustainable profitability, mitigation of business risks, external audit certification readiness',
+          processAffected: 'Management Review, Strategic Planning & Finance',
+          treatmentMethod: 'Quarterly management reviews, monthly KPI reporting, customer satisfaction tracking',
+          selected: true,
+        },
+      ];
+      setImportedPartiesPreview(parsedItems);
+      setIsAIParsingParties(false);
+      showNotice(`✨ AI extracted ${parsedItems.length} interested parties from document!`);
+    }, 600);
+  };
+
+  const handleConfirmImportParties = () => {
+    const selected = importedPartiesPreview.filter((p) => p.selected !== false);
+    if (selected.length === 0) return;
+    setStakeholders((prev) => [...selected.map(({ selected: _, ...rest }) => rest), ...prev]);
+    showNotice(`✅ Successfully imported ${selected.length} interested parties into COTO register!`);
+    setImportedPartiesPreview([]);
+    setPartiesImportText('');
+    setPartiesImportFileName('');
+    setShowAIPartiesImportModal(false);
   };
 
   const currentActiveManualSection = manualSections.find((s) => s.id === manualSectionId);
@@ -1380,69 +1990,116 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
 
             <div className="flex items-center gap-2 flex-wrap">
               <button
-                onClick={handleAutoGenerateStakeholders}
-                disabled={aiGenerating === 'parties'}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0c1f38] hover:bg-[#132c4e] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                type="button"
+                onClick={handleAddNewStakeholderRow}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#1877f2] hover:bg-[#166fe5] text-white text-sm font-semibold rounded-lg shadow-xs cursor-pointer transition-colors"
               >
-                {aiGenerating === 'parties' ? (
-                  <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-                ) : (
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                )}
-                <span>Auto-Generate Stakeholders with AI</span>
+                <Plus className="w-4 h-4" />
+                <span>+ Add Interested Party</span>
               </button>
 
               <button
-                onClick={() => setShowNewStakeholderModal(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
+                type="button"
+                onClick={() => setShowAIPartiesImportModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-sm font-semibold rounded-lg shadow-xs cursor-pointer transition-colors"
+                title="Upload or paste document to extract interested parties"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Stakeholder</span>
+                <Upload className="w-4 h-4 text-slate-600" />
+                <span>AI Import from Document</span>
+              </button>
+              <input
+                type="file"
+                ref={partiesFileInputRef}
+                onChange={handleFileUploadParties}
+                accept=".pdf,.docx,.xlsx,.csv,.txt"
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={handleAutoGenerateStakeholders}
+                disabled={aiGenerating === 'parties'}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#16325c] hover:bg-[#10274a] text-white text-sm font-semibold rounded-lg shadow-xs cursor-pointer transition-colors"
+              >
+                {aiGenerating === 'parties' ? (
+                  <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                )}
+                <span>Auto-Generate Stakeholders with AI</span>
               </button>
             </div>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-50 border-b border-slate-200 font-bold text-slate-700">
-                  <tr>
-                    <th className="py-3 px-4">Interested Party / Stakeholder</th>
-                    <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4">Needs & Expectations</th>
-                    <th className="py-3 px-4">Risk / Opportunity</th>
-                    <th className="py-3 px-4">Action Plan</th>
-                    <th className="py-3 px-4 text-center">Actions</th>
+            <div className="overflow-x-auto pb-4">
+              <table className="w-full text-left text-xs border-collapse min-w-[950px]">
+                <thead>
+                  <tr className="bg-[#16325c] text-white font-semibold text-xs tracking-wide">
+                    <th className="py-3 px-4 w-12 text-center">#</th>
+                    <th className="py-3 px-4 min-w-[200px]">Interested Party</th>
+                    <th className="py-3 px-4 w-44">Internal / External</th>
+                    <th className="py-3 px-4 min-w-[220px]">Issue of Concern</th>
+                    <th className="py-3 px-4 min-w-[200px]">Process Affected</th>
+                    <th className="py-3 px-4 min-w-[220px]">Treatment Method</th>
+                    <th className="py-3 px-4 w-20 text-center">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-800">
-                  {stakeholders.map((sh) => (
-                    <tr key={sh.id} className="hover:bg-slate-50/60">
-                      <td className="py-3.5 px-4 font-bold text-slate-900">{sh.stakeholder}</td>
-                      <td className="py-3.5 px-4">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            sh.category === 'EXTERNAL'
-                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                              : 'bg-blue-50 text-blue-700 border border-blue-200'
-                          }`}
-                        >
-                          {sh.category}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 max-w-xs">{sh.needsAndExpectations}</td>
-                      <td className="py-3.5 px-4 max-w-xs text-slate-600">{sh.riskOpportunity}</td>
-                      <td className="py-3.5 px-4 text-blue-700 font-semibold">{sh.actionPlan}</td>
-                      <td className="py-3.5 px-4 text-center">
-                        <button
-                          onClick={() => setStakeholders(stakeholders.filter((s) => s.id !== sh.id))}
-                          className="text-slate-300 hover:text-red-600 p-1 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                  {stakeholders.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-slate-400">
+                        No interested parties recorded. Click "+ Add Interested Party" or "AI Import from Document" to begin.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    stakeholders.map((sh, idx) => (
+                      <tr key={sh.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100">
+                        <td className="py-3.5 px-4 text-slate-400 font-medium text-center align-middle">
+                          {idx + 1}
+                        </td>
+                        <td className="py-3.5 px-4 font-semibold text-slate-800 align-middle">
+                          {sh.stakeholder ? sh.stakeholder : '—'}
+                        </td>
+                        <td className="py-3.5 px-4 align-middle">
+                          <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-50 text-slate-700 border border-slate-200 tracking-wide uppercase inline-flex items-center">
+                            {sh.category || 'INTERNAL'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-600 align-middle">
+                          {sh.issueOfConcern || sh.needsAndExpectations || '—'}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-600 align-middle">
+                          {sh.processAffected || '—'}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-600 align-middle">
+                          {sh.treatmentMethod || sh.actionPlan || '—'}
+                        </td>
+                        <td className="py-3.5 px-4 text-center align-middle">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditStakeholder(sh)}
+                              className="text-slate-600 hover:text-blue-600 p-1 cursor-pointer transition-colors"
+                              title="Edit Interested Party"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteStakeholder(sh.id)}
+                              className="text-slate-600 hover:text-red-600 p-1 cursor-pointer transition-colors"
+                              title="Delete Interested Party"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1455,91 +2112,252 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
       {/* ======================================================== */}
       {activeTab === 'risks' && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h3 className="text-base font-bold text-slate-900">
-                Risk Register & Assessment (ISO 9001 Clause 6.1.1)
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Identify, quantify, and treat process risks using likelihood and impact scoring.
-              </p>
-            </div>
+          {/* Top Actions matching pinned screenshot */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              type="button"
+              onClick={handleAddNewRiskRow}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#1877f2] hover:bg-[#166fe5] text-white text-sm font-semibold rounded-lg shadow-xs cursor-pointer transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Add Risk</span>
+            </button>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={handleAutoGenerateRisks}
-                disabled={aiGenerating === 'risks'}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0c1f38] hover:bg-[#132c4e] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
-              >
-                {aiGenerating === 'risks' ? (
-                  <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-                ) : (
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                )}
-                <span>Auto-Generate Risks with AI</span>
-              </button>
+            <button
+              type="button"
+              onClick={() => riskFileInputRef.current?.click()}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-sm font-semibold rounded-lg shadow-xs cursor-pointer transition-colors"
+            >
+              <Upload className="w-4 h-4 text-slate-600" />
+              <span>AI Import from Document</span>
+            </button>
+            <input
+              type="file"
+              ref={riskFileInputRef}
+              onChange={handleImportRiskDocument}
+              accept=".pdf,.docx,.xlsx,.csv,.txt"
+              className="hidden"
+            />
 
-              <button
-                onClick={() => setShowNewRiskModal(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Risk Entry</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleAutoGenerateRisks}
+              disabled={aiGenerating === 'risks'}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#16325c] hover:bg-[#10274a] text-white text-sm font-semibold rounded-lg shadow-xs cursor-pointer transition-colors"
+            >
+              {aiGenerating === 'risks' ? (
+                <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4 text-amber-400" />
+              )}
+              <span>Auto-Generate Risks with AI</span>
+            </button>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-50 border-b border-slate-200 font-bold text-slate-700">
-                  <tr>
-                    <th className="py-3 px-4">Risk Description</th>
-                    <th className="py-3 px-4">Applicable Process</th>
-                    <th className="py-3 px-4 text-center">Likelihood (1-5)</th>
-                    <th className="py-3 px-4 text-center">Impact (1-5)</th>
-                    <th className="py-3 px-4 text-center">Score</th>
-                    <th className="py-3 px-4">Level</th>
-                    <th className="py-3 px-4">Mitigation Control</th>
-                    <th className="py-3 px-4 text-center">Action</th>
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs min-h-[380px]">
+            <div className="overflow-x-auto pb-12">
+              <table className="w-full text-left text-sm border-collapse min-w-[950px]">
+                <thead>
+                  <tr className="bg-[#16325c] text-white font-semibold text-xs tracking-wide">
+                    <th className="py-3 px-4 w-12 text-center">#</th>
+                    <th className="py-3 px-4 w-44">
+                      <div className="flex items-center gap-1">
+                        <span>Process</span>
+                        <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-80" />
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 min-w-[220px]">
+                      <div className="flex items-center gap-1">
+                        <span>Risk</span>
+                        <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-80" />
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 w-44">
+                      <div className="flex items-center gap-1">
+                        <span>Consequence</span>
+                        <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-80" />
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 w-44">
+                      <div className="flex items-center gap-1">
+                        <span>Likelihood</span>
+                        <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-80" />
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 w-28">
+                      <div className="flex items-center gap-1">
+                        <span>Risk Rating</span>
+                        <ChevronDown className="w-3 h-3 text-slate-300 opacity-80" />
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 min-w-[240px]">
+                      <span>Mitigation Plan</span>
+                    </th>
+                    <th className="py-3 px-4 w-12 text-center">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-800">
-                  {risks.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50/60">
-                      <td className="py-3.5 px-4 font-semibold text-slate-900 max-w-xs">
-                        {r.riskDescription}
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-600">{r.process}</td>
-                      <td className="py-3.5 px-4 text-center font-mono font-bold">{r.likelihood}</td>
-                      <td className="py-3.5 px-4 text-center font-mono font-bold">{r.impact}</td>
-                      <td className="py-3.5 px-4 text-center font-bold text-slate-900 text-sm">
-                        {r.riskScore}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            r.level === 'HIGH'
-                              ? 'bg-red-50 text-red-700 border border-red-200'
-                              : r.level === 'MEDIUM'
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          }`}
-                        >
-                          {r.level}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-600 max-w-sm">{r.mitigation}</td>
-                      <td className="py-3.5 px-4 text-center">
-                        <button
-                          onClick={() => setRisks(risks.filter((item) => item.id !== r.id))}
-                          className="text-slate-300 hover:text-red-600 cursor-pointer p-1"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {risks.map((r, idx) => {
+                    const consequenceVal = r.consequence || r.impact || 1;
+                    const likelihoodVal = r.likelihood || 1;
+                    const currentScore = Math.max(1, consequenceVal + likelihoodVal - 1);
+                    const currentConsequenceObj =
+                      CONSEQUENCE_OPTIONS.find((o) => o.value === consequenceVal) || CONSEQUENCE_OPTIONS[0];
+                    const currentLikelihoodObj =
+                      LIKELIHOOD_OPTIONS.find((o) => o.value === likelihoodVal) || LIKELIHOOD_OPTIONS[0];
+
+                    const isConsequenceOpen =
+                      openDropdown?.id === r.id &&
+                      openDropdown?.type === 'consequence' &&
+                      openDropdown?.tab === 'risks';
+                    const isLikelihoodOpen =
+                      openDropdown?.id === r.id &&
+                      openDropdown?.type === 'likelihood' &&
+                      openDropdown?.tab === 'risks';
+
+                    return (
+                      <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3.5 px-4 text-slate-400 font-semibold text-center align-top pt-5">
+                          {idx + 1}
+                        </td>
+
+                        {/* Process Column */}
+                        <td className="py-3.5 px-3 align-top">
+                          <input
+                            type="text"
+                            value={r.process || ''}
+                            onChange={(e) => handleUpdateRiskField(r.id, 'process', e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                          />
+                        </td>
+
+                        {/* Risk Description Column */}
+                        <td className="py-3.5 px-3 align-top">
+                          <textarea
+                            rows={2}
+                            value={r.riskDescription || ''}
+                            onChange={(e) => handleUpdateRiskField(r.id, 'riskDescription', e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-y min-h-[64px] transition-colors"
+                          />
+                        </td>
+
+                        {/* Consequence Column */}
+                        <td className="py-3.5 px-3 align-top">
+                          <div className="relative coto-dropdown-container">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenDropdown(
+                                  isConsequenceOpen
+                                    ? null
+                                    : { id: r.id, type: 'consequence', tab: 'risks' }
+                                );
+                              }}
+                              className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 flex items-center justify-between gap-1 shadow-xs cursor-pointer transition-colors text-left"
+                            >
+                              <span className="truncate">{currentConsequenceObj.label}</span>
+                              <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
+                            </button>
+
+                            {isConsequenceOpen && (
+                              <div className="absolute top-full left-0 mt-1.5 w-48 bg-white border border-slate-200/80 rounded-xl shadow-xl py-1.5 z-50 animate-in fade-in duration-100">
+                                {CONSEQUENCE_OPTIONS.map((opt) => (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => {
+                                      handleUpdateRiskField(r.id, 'consequence', opt.value);
+                                      setOpenDropdown(null);
+                                    }}
+                                    className="w-full text-left px-3.5 py-2 text-sm text-slate-800 hover:bg-slate-50 cursor-pointer flex items-center justify-between transition-colors"
+                                  >
+                                    <span>{opt.label}</span>
+                                    {opt.value === consequenceVal && (
+                                      <Check className="w-4 h-4 text-slate-900 shrink-0" />
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Likelihood Column */}
+                        <td className="py-3.5 px-3 align-top">
+                          <div className="relative coto-dropdown-container">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenDropdown(
+                                  isLikelihoodOpen
+                                    ? null
+                                    : { id: r.id, type: 'likelihood', tab: 'risks' }
+                                );
+                              }}
+                              className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 flex items-center justify-between gap-1 shadow-xs cursor-pointer transition-colors text-left"
+                            >
+                              <span className="truncate">{currentLikelihoodObj.label}</span>
+                              <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
+                            </button>
+
+                            {isLikelihoodOpen && (
+                              <div className="absolute top-full left-0 mt-1.5 w-48 bg-white border border-slate-200/80 rounded-xl shadow-xl py-1.5 z-50 animate-in fade-in duration-100">
+                                {LIKELIHOOD_OPTIONS.map((opt) => (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => {
+                                      handleUpdateRiskField(r.id, 'likelihood', opt.value);
+                                      setOpenDropdown(null);
+                                    }}
+                                    className="w-full text-left px-3.5 py-2 text-sm text-slate-800 hover:bg-slate-50 cursor-pointer flex items-center justify-between transition-colors"
+                                  >
+                                    <span>{opt.label}</span>
+                                    {opt.value === likelihoodVal && (
+                                      <Check className="w-4 h-4 text-slate-900 shrink-0" />
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Risk Rating Column */}
+                        <td className="py-3.5 px-3 align-top pt-4">
+                          {renderRiskRatingBadge(currentScore)}
+                        </td>
+
+                        {/* Mitigation Plan Column */}
+                        <td className="py-3.5 px-3 align-top">
+                          <textarea
+                            rows={3}
+                            value={r.mitigation || ''}
+                            onChange={(e) => handleUpdateRiskField(r.id, 'mitigation', e.target.value)}
+                            placeholder={"1. Action one\n2. Action two\n3. Action three"}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-y min-h-[68px] transition-colors"
+                          />
+                          <p className="text-[11px] text-slate-400 mt-1">
+                            Enter each action on a new line, e.g. 1. Action
+                          </p>
+                        </td>
+
+                        {/* Actions Column */}
+                        <td className="py-3.5 px-3 text-center align-top pt-4">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteRisk(r.id)}
+                            className="text-slate-300 hover:text-red-600 cursor-pointer p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                            title="Delete Risk"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1552,96 +2370,260 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
       {/* ======================================================== */}
       {activeTab === 'opportunities' && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h3 className="text-base font-bold text-slate-900">
-                Opportunity Register & Action Plans (ISO 9001 Clause 6.1.2)
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Capture strategic, market, and technological opportunities for organizational growth and quality improvement.
-              </p>
-            </div>
+          {/* Top Actions matching pinned screenshot */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              type="button"
+              onClick={handleAddNewOpportunityRow}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#1877f2] hover:bg-[#166fe5] text-white text-sm font-semibold rounded-lg shadow-xs cursor-pointer transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Add Opportunity</span>
+            </button>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={handleAutoGenerateOpportunities}
-                disabled={aiGenerating === 'opportunities'}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0c1f38] hover:bg-[#132c4e] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
-              >
-                {aiGenerating === 'opportunities' ? (
-                  <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-                ) : (
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                )}
-                <span>Auto-Generate Opportunities with AI</span>
-              </button>
+            <button
+              type="button"
+              onClick={() => oppFileInputRef.current?.click()}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-sm font-semibold rounded-lg shadow-xs cursor-pointer transition-colors"
+            >
+              <Upload className="w-4 h-4 text-slate-600" />
+              <span>AI Import from Document</span>
+            </button>
+            <input
+              type="file"
+              ref={oppFileInputRef}
+              onChange={handleImportOppDocument}
+              accept=".pdf,.docx,.xlsx,.csv,.txt"
+              className="hidden"
+            />
 
-              <button
-                onClick={() => setShowNewOppModal(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Opportunity</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleAutoGenerateOpportunities}
+              disabled={aiGenerating === 'opportunities'}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#16325c] hover:bg-[#10274a] text-white text-sm font-semibold rounded-lg shadow-xs cursor-pointer transition-colors"
+            >
+              {aiGenerating === 'opportunities' ? (
+                <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4 text-amber-400" />
+              )}
+              <span>Auto-Generate Opportunities with AI</span>
+            </button>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-50 border-b border-slate-200 font-bold text-slate-700">
-                  <tr>
-                    <th className="py-3 px-4">Opportunity Description</th>
-                    <th className="py-3 px-4">Focus Area / Process</th>
-                    <th className="py-3 px-4 text-center">Feasibility (1-5)</th>
-                    <th className="py-3 px-4 text-center">Impact (1-5)</th>
-                    <th className="py-3 px-4 text-center">Score</th>
-                    <th className="py-3 px-4">Priority</th>
-                    <th className="py-3 px-4">Action Plan & Realization</th>
-                    <th className="py-3 px-4">Owner & Target</th>
-                    <th className="py-3 px-4 text-center">Action</th>
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs min-h-[380px]">
+            <div className="overflow-x-auto pb-12">
+              <table className="w-full text-left text-sm border-collapse min-w-[950px]">
+                <thead>
+                  <tr className="bg-[#16325c] text-white font-semibold text-xs tracking-wide">
+                    <th className="py-3 px-4 w-12 text-center">#</th>
+                    <th className="py-3 px-4 w-44">
+                      <div className="flex items-center gap-1">
+                        <span>Process</span>
+                        <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-80" />
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 min-w-[220px]">
+                      <div className="flex items-center gap-1">
+                        <span>Opportunity</span>
+                        <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-80" />
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 w-44">
+                      <div className="flex items-center gap-1">
+                        <span>Impact</span>
+                        <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-80" />
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 w-44">
+                      <div className="flex items-center gap-1">
+                        <span>Likelihood</span>
+                        <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-80" />
+                      </div>
+                    </th>
+                    <th className="py-2.5 px-4 w-36">
+                      <div className="flex flex-col leading-tight">
+                        <span>Opportunity</span>
+                        <div className="flex items-center gap-1">
+                          <span>Rating</span>
+                          <ChevronDown className="w-3 h-3 text-slate-300 opacity-80" />
+                        </div>
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 min-w-[240px]">
+                      <span>Pursuit Plan</span>
+                    </th>
+                    <th className="py-3 px-4 w-12 text-center">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-800">
-                  {opportunities.map((opp) => (
-                    <tr key={opp.id} className="hover:bg-slate-50/60">
-                      <td className="py-3.5 px-4 font-bold text-slate-900 max-w-xs">
-                        {opp.opportunityDescription}
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-600">{opp.focusArea}</td>
-                      <td className="py-3.5 px-4 text-center font-mono">{opp.feasibility}</td>
-                      <td className="py-3.5 px-4 text-center font-mono">{opp.impact}</td>
-                      <td className="py-3.5 px-4 text-center font-bold text-slate-900 text-sm">
-                        {opp.score}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            opp.priority === 'HIGH'
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : opp.priority === 'MEDIUM'
-                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                              : 'bg-slate-100 text-slate-600 border border-slate-200'
-                          }`}
-                        >
-                          {opp.priority}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-700 max-w-sm">{opp.actionPlan}</td>
-                      <td className="py-3.5 px-4 text-slate-500 whitespace-nowrap">
-                        <div className="font-semibold text-slate-700">{opp.owner}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{opp.targetDate}</div>
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <button
-                          onClick={() => setOpportunities(opportunities.filter((o) => o.id !== opp.id))}
-                          className="text-slate-300 hover:text-red-600 cursor-pointer p-1"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {opportunities.map((opp, idx) => {
+                    const impactVal = opp.impact || opp.consequence || 1;
+                    const likelihoodVal = opp.likelihood || opp.feasibility || 1;
+                    const currentScore = Math.max(1, impactVal + likelihoodVal - 1);
+                    const currentImpactObj =
+                      CONSEQUENCE_OPTIONS.find((o) => o.value === impactVal) || CONSEQUENCE_OPTIONS[0];
+                    const currentLikelihoodObj =
+                      LIKELIHOOD_OPTIONS.find((o) => o.value === likelihoodVal) || LIKELIHOOD_OPTIONS[0];
+
+                    const isImpactOpen =
+                      openDropdown?.id === opp.id &&
+                      (openDropdown?.type === 'impact' || openDropdown?.type === 'consequence') &&
+                      openDropdown?.tab === 'opportunities';
+                    const isLikelihoodOpen =
+                      openDropdown?.id === opp.id &&
+                      openDropdown?.type === 'likelihood' &&
+                      openDropdown?.tab === 'opportunities';
+
+                    return (
+                      <tr key={opp.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3.5 px-4 text-slate-400 font-semibold text-center align-top pt-5">
+                          {idx + 1}
+                        </td>
+
+                        {/* Process Column */}
+                        <td className="py-3.5 px-3 align-top">
+                          <input
+                            type="text"
+                            value={opp.process || opp.focusArea || ''}
+                            onChange={(e) => handleUpdateOpportunityField(opp.id, 'process', e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                          />
+                        </td>
+
+                        {/* Opportunity Description Column */}
+                        <td className="py-3.5 px-3 align-top">
+                          <textarea
+                            rows={2}
+                            value={opp.opportunityDescription || ''}
+                            onChange={(e) =>
+                              handleUpdateOpportunityField(opp.id, 'opportunityDescription', e.target.value)
+                            }
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-y min-h-[64px] transition-colors"
+                          />
+                        </td>
+
+                        {/* Impact Column */}
+                        <td className="py-3.5 px-3 align-top">
+                          <div className="relative coto-dropdown-container">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenDropdown(
+                                  isImpactOpen
+                                    ? null
+                                    : { id: opp.id, type: 'impact', tab: 'opportunities' }
+                                );
+                              }}
+                              className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 flex items-center justify-between gap-1 shadow-xs cursor-pointer transition-colors text-left"
+                            >
+                              <span className="truncate">{currentImpactObj.label}</span>
+                              <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
+                            </button>
+
+                            {isImpactOpen && (
+                              <div className="absolute top-full left-0 mt-1.5 w-48 bg-white border border-slate-200/80 rounded-xl shadow-xl py-1.5 z-50 animate-in fade-in duration-100">
+                                {CONSEQUENCE_OPTIONS.map((opt) => (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => {
+                                      handleUpdateOpportunityField(opp.id, 'impact', opt.value);
+                                      setOpenDropdown(null);
+                                    }}
+                                    className="w-full text-left px-3.5 py-2 text-sm text-slate-800 hover:bg-slate-50 cursor-pointer flex items-center justify-between transition-colors"
+                                  >
+                                    <span>{opt.label}</span>
+                                    {opt.value === impactVal && (
+                                      <Check className="w-4 h-4 text-slate-900 shrink-0" />
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Likelihood Column */}
+                        <td className="py-3.5 px-3 align-top">
+                          <div className="relative coto-dropdown-container">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenDropdown(
+                                  isLikelihoodOpen
+                                    ? null
+                                    : { id: opp.id, type: 'likelihood', tab: 'opportunities' }
+                                );
+                              }}
+                              className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 flex items-center justify-between gap-1 shadow-xs cursor-pointer transition-colors text-left"
+                            >
+                              <span className="truncate">{currentLikelihoodObj.label}</span>
+                              <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
+                            </button>
+
+                            {isLikelihoodOpen && (
+                              <div className="absolute top-full left-0 mt-1.5 w-48 bg-white border border-slate-200/80 rounded-xl shadow-xl py-1.5 z-50 animate-in fade-in duration-100">
+                                {LIKELIHOOD_OPTIONS.map((opt) => (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => {
+                                      handleUpdateOpportunityField(opp.id, 'likelihood', opt.value);
+                                      setOpenDropdown(null);
+                                    }}
+                                    className="w-full text-left px-3.5 py-2 text-sm text-slate-800 hover:bg-slate-50 cursor-pointer flex items-center justify-between transition-colors"
+                                  >
+                                    <span>{opt.label}</span>
+                                    {opt.value === likelihoodVal && (
+                                      <Check className="w-4 h-4 text-slate-900 shrink-0" />
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Opportunity Rating Column */}
+                        <td className="py-3.5 px-3 align-top pt-4 whitespace-nowrap">
+                          {renderOpportunityRatingBadge(currentScore)}
+                        </td>
+
+                        {/* Pursuit Plan Column */}
+                        <td className="py-3.5 px-3 align-top">
+                          <textarea
+                            rows={3}
+                            value={opp.actionPlan || opp.mitigation || ''}
+                            onChange={(e) => {
+                              handleUpdateOpportunityField(opp.id, 'actionPlan', e.target.value);
+                              handleUpdateOpportunityField(opp.id, 'mitigation', e.target.value);
+                            }}
+                            placeholder={"1. Action one\n2. Action two\n3. Action three"}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-y min-h-[68px] transition-colors"
+                          />
+                          <p className="text-[11px] text-slate-400 mt-1">
+                            Enter each action on a new line, e.g. 1. Action
+                          </p>
+                        </td>
+
+                        {/* Actions Column */}
+                        <td className="py-3.5 px-3 text-center align-top pt-4">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteOpportunity(opp.id)}
+                            className="text-slate-300 hover:text-red-600 cursor-pointer p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                            title="Delete Opportunity"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -2619,52 +3601,52 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
             </div>
             <form onSubmit={handleAddStakeholder} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Stakeholder Name</label>
+                <label className="block font-semibold text-slate-700 mb-1">Interested Party</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Automotive OEM Clients"
+                  placeholder="e.g. Key Commercial Customers"
                   value={shName}
                   onChange={(e) => setShName(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Category</label>
+                <label className="block font-semibold text-slate-700 mb-1">Internal / External</label>
                 <select
                   value={shType}
                   onChange={(e) => setShType(e.target.value as any)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 >
-                  <option value="EXTERNAL">EXTERNAL</option>
                   <option value="INTERNAL">INTERNAL</option>
+                  <option value="EXTERNAL">EXTERNAL</option>
                 </select>
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Needs & Expectations</label>
+                <label className="block font-semibold text-slate-700 mb-1">Issue of Concern</label>
                 <textarea
                   rows={2}
-                  placeholder="e.g. 100% on-time delivery and strict chemical spec adherence"
+                  placeholder="e.g. Consistent product specifications, on-time delivery..."
                   value={shNeeds}
                   onChange={(e) => setShNeeds(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Risk / Opportunity</label>
+                <label className="block font-semibold text-slate-700 mb-1">Process Affected</label>
                 <input
                   type="text"
-                  placeholder="e.g. Opportunity to secure annual supply agreement"
-                  value={shRisk}
-                  onChange={(e) => setShRisk(e.target.value)}
+                  placeholder="e.g. Production / Extrusion, Quality Control & Dispatch"
+                  value={shProcess}
+                  onChange={(e) => setShProcess(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Action Plan</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Institute batch CoA testing and bi-weekly status meetings"
+                <label className="block font-semibold text-slate-700 mb-1">Treatment Method</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Implement batch barcode tracking and automated CoA generation"
                   value={shAction}
                   onChange={(e) => setShAction(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
@@ -2679,7 +3661,101 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
                   Cancel
                 </button>
                 <button type="submit" className="px-4 py-1.5 bg-blue-600 text-white rounded-lg font-semibold">
-                  Save Stakeholder
+                  Save Interested Party
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Stakeholder / Interested Party Modal */}
+      {showEditStakeholderModal && editingStakeholder && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-blue-600" />
+                <h3 className="font-bold text-base text-slate-900">Edit Interested Party (COTO)</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowEditStakeholderModal(false);
+                  setEditingStakeholder(null);
+                }}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditStakeholder} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Interested Party</label>
+                <input
+                  type="text"
+                  placeholder="Enter interested party name..."
+                  value={editShParty}
+                  onChange={(e) => setEditShParty(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Internal / External</label>
+                <select
+                  value={editShType}
+                  onChange={(e) => setEditShType(e.target.value as any)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="INTERNAL">INTERNAL</option>
+                  <option value="EXTERNAL">EXTERNAL</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Issue of Concern</label>
+                <textarea
+                  rows={3}
+                  placeholder="Key issues of concern, needs or expectations..."
+                  value={editShConcern}
+                  onChange={(e) => setEditShConcern(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Process Affected</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Production / Extrusion, Quality Control & Dispatch"
+                  value={editShProcess}
+                  onChange={(e) => setEditShProcess(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Treatment Method</label>
+                <textarea
+                  rows={3}
+                  placeholder="Mitigation, controls, or action plan treatment..."
+                  value={editShTreatment}
+                  onChange={(e) => setEditShTreatment(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditStakeholderModal(false);
+                    setEditingStakeholder(null);
+                  }}
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 font-medium hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow-xs"
+                >
+                  Save Changes
                 </button>
               </div>
             </form>
@@ -2732,7 +3808,7 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Impact (1 to 5)</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Consequence (1 to 5)</label>
                   <input
                     type="number"
                     min={1}
@@ -2804,7 +3880,7 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Feasibility (1-5)</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Likelihood (1-5)</label>
                   <input
                     type="number"
                     min={1}
@@ -3236,6 +4312,202 @@ export const PolicyObjectivesView: React.FC<PolicyObjectivesViewProps> = ({ comp
                       >
                         <Check className="w-3.5 h-3.5" />
                         <span>Confirm & Import ({importedObjectivesPreview.length}) Objectives</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* AI IMPORT INTERESTED PARTIES (COTO) MODAL                */}
+      {/* ======================================================== */}
+      {showAIPartiesImportModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200 my-6 animate-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-lg text-slate-900">
+                      AI Interested Parties & COTO Document Import
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      ISO 9001 Clause 4
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Upload a stakeholder register document or paste text. AI extracts Interested Parties, Internal/External classification, Issues of Concern, Process Affected, and Treatment Methods.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAIPartiesImportModal(false);
+                  setImportedPartiesPreview([]);
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Document Upload Area */}
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                  Upload Document File (.pdf, .docx, .xlsx, .csv, .txt)
+                </label>
+                <div
+                  onClick={() => partiesFileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-xl p-4 text-center bg-slate-50/50 hover:bg-indigo-50/20 transition-all cursor-pointer group"
+                >
+                  <div className="flex flex-col items-center justify-center gap-1.5">
+                    <Upload className="w-6 h-6 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                    <span className="text-xs font-semibold text-slate-700 group-hover:text-indigo-700">
+                      {partiesImportFileName ? `Selected: ${partiesImportFileName}` : 'Click to browse or drop COTO / Stakeholder document'}
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      Supports PDF stakeholder registers, Word SOPs, Excel matrix exports, or plain text
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-800">
+                    Or Paste Stakeholder & COTO Register Content
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPartiesImportText(
+                        `Interested Party: Statutory Authorities (DoEL, SABS)\nCategory: EXTERNAL\nIssue of Concern: Strict compliance with Occupational Health & Safety and air emissions standards.\nProcess Affected: Plant Utilities, Maintenance & Governance\nTreatment Method: Quarterly surveillance audits and legal register review.\n\n` +
+                          `Interested Party: Automotive Tier-1 Customers\nCategory: EXTERNAL\nIssue of Concern: Strict CoA batch consistency and zero dispatch delays.\nProcess Affected: Extrusion Line 1 & Quality Control\nTreatment Method: Automated inline melt index testing and batch barcoding.\n\n` +
+                          `Interested Party: Plant Operations Team & Technicians\nCategory: INTERNAL\nIssue of Concern: Safe workplace environment, machine guarding, and clear SOPs.\nProcess Affected: Production & Granulation Operations\nTreatment Method: Monthly ISO 9001 toolbox talks and certified equipment training.`
+                      );
+                    }}
+                    className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold cursor-pointer"
+                  >
+                    Insert Sample COTO Content
+                  </button>
+                </div>
+                <textarea
+                  rows={4}
+                  value={partiesImportText}
+                  onChange={(e) => setPartiesImportText(e.target.value)}
+                  placeholder="Paste table rows or text describing interested parties, internal/external scope, issues of concern, and treatment actions..."
+                  className="w-full p-3 border border-slate-300 rounded-xl text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={handleParseAIPartiesModal}
+                  disabled={isAIParsingParties || (!partiesImportText.trim() && !partiesImportFileName)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
+                >
+                  {isAIParsingParties ? (
+                    <>
+                      <Loader2 className="w-4 h-4 text-purple-200 animate-spin" />
+                      <span>AI Extracting Interested Parties...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 text-purple-200" />
+                      <span>AI Extract Interested Parties from Document</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Preview Section */}
+              {importedPartiesPreview.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-xs text-slate-900 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span>AI Extracted {importedPartiesPreview.length} Interested Parties (Ready for Import)</span>
+                    </h4>
+                    <span className="text-[11px] text-slate-500">
+                      Select items to import into active COTO register
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {importedPartiesPreview.map((item, i) => (
+                      <div
+                        key={item.id || i}
+                        className={`p-3 rounded-xl border transition-all text-xs flex items-start gap-3 ${
+                          item.selected !== false
+                            ? 'bg-indigo-50/40 border-indigo-200'
+                            : 'bg-slate-50 border-slate-200 opacity-60'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={item.selected !== false}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setImportedPartiesPreview((prev) =>
+                              prev.map((p, idx) => (idx === i ? { ...p, selected: checked } : p))
+                            );
+                          }}
+                          className="mt-1 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-slate-900">{item.stakeholder}</span>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-white text-slate-700 border border-slate-200">
+                              {item.category}
+                            </span>
+                          </div>
+                          <p className="text-slate-600 text-[11px]">
+                            <span className="font-semibold text-slate-700">Issue:</span> {item.issueOfConcern}
+                          </p>
+                          <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500 pt-1">
+                            <span>
+                              <span className="font-semibold text-slate-600">Process:</span> {item.processAffected}
+                            </span>
+                            <span className="truncate max-w-[260px]">
+                              <span className="font-semibold text-slate-600">Treatment:</span> {item.treatmentMethod}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Confirm Import Button */}
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                    <p className="text-xs text-slate-500">
+                      Selected items will be saved directly into your Clause 4 COTO stakeholder register.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowAIPartiesImportModal(false)}
+                        className="px-4 py-2 border border-slate-300 rounded-xl text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmImportParties}
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Confirm & Import ({importedPartiesPreview.filter((p) => p.selected !== false).length}) Parties</span>
                       </button>
                     </div>
                   </div>

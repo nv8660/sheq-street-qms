@@ -70,7 +70,40 @@ export interface ProcedureItem {
   approver?: string;
   fileName?: string;
   fileData?: string;
+  revisionDate?: string;
 }
+
+export const ISO_9001_CLAUSES = [
+  'Clause 4.1 - Understanding the organization and its context',
+  'Clause 4.2 - Understanding the needs and expectations of interested parties',
+  'Clause 4.3 - Determining the scope of the quality management system',
+  'Clause 4.4 - Quality management system and its processes',
+  'Clause 5.1 - Leadership and commitment',
+  'Clause 5.2 - Quality policy',
+  'Clause 5.3 - Organizational roles, responsibilities and authorities',
+  'Clause 6.1 - Actions to address risks and opportunities',
+  'Clause 6.2 - Quality objectives and planning to achieve them',
+  'Clause 6.3 - Planning of changes',
+  'Clause 7.1 - Resources & Infrastructure',
+  'Clause 7.1.5 - Monitoring and measuring resources',
+  'Clause 7.2 - Competence & Training',
+  'Clause 7.3 - Awareness',
+  'Clause 7.4 - Communication',
+  'Clause 7.5 - Documented information (Control of Documents & Records)',
+  'Clause 8.1 - Operational planning and control',
+  'Clause 8.2 - Requirements for products and services',
+  'Clause 8.3 - Design and development of products and services',
+  'Clause 8.4 - Control of externally provided processes, products and services',
+  'Clause 8.5 - Production and service provision',
+  'Clause 8.6 - Release of products and services',
+  'Clause 8.7 - Control of nonconforming outputs',
+  'Clause 9.1 - Monitoring, measurement, analysis and evaluation',
+  'Clause 9.2 - Internal audit',
+  'Clause 9.3 - Management review',
+  'Clause 10.1 - Improvement - General',
+  'Clause 10.2 - Nonconformity and corrective action',
+  'Clause 10.3 - Continual improvement',
+];
 
 // Initial 2 Procedures (matching screenshot badge 2)
 const initialProceduresList: ProcedureItem[] = [
@@ -542,13 +575,73 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
     setIsModalOpen(true);
   };
 
-  // New Procedure Form
+  const getTodayDateNumeric = () => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  // New Procedure Form - Matching Pinned Image
   const [newProc, setNewProc] = useState({
     title: '',
-    clause: 'Clause 7.5',
-    revision: 'Rev 1.0',
-    owner: 'Quality Lead',
+    clause: '',
+    docNumber: '',
+    isCustomDocNumber: false,
+    status: 'Draft' as ProcedureItem['status'],
+    revision: '0',
+    revisionDate: getTodayDateNumeric(),
+    nextReviewDate: '',
+    author: '',
+    approver: '',
+    content: `# Procedure Title\n\n## 1. Purpose\n...`,
   });
+
+  const handleOpenNewProcModal = () => {
+    setNewProc({
+      title: '',
+      clause: '',
+      docNumber: '',
+      isCustomDocNumber: false,
+      status: 'Draft',
+      revision: '0',
+      revisionDate: getTodayDateNumeric(),
+      nextReviewDate: '',
+      author: '',
+      approver: '',
+      content: `# Procedure Title\n\n## 1. Purpose\n...`,
+    });
+    setIsProcModalOpen(true);
+  };
+
+  const handleClauseChange = (clauseVal: string) => {
+    let nextDocNum = newProc.docNumber;
+    if (!newProc.isCustomDocNumber) {
+      if (clauseVal) {
+        const prefix = company?.name ? company.name.substring(0, 2).toUpperCase() : 'NK';
+        nextDocNum = `${prefix}-SOP-${String(procedures.length + 1).padStart(3, '0')}`;
+      } else {
+        nextDocNum = '';
+      }
+    }
+    setNewProc((prev) => ({
+      ...prev,
+      clause: clauseVal,
+      docNumber: nextDocNum,
+    }));
+  };
+
+  const handleToggleCustomProcNumber = () => {
+    const nextCustom = !newProc.isCustomDocNumber;
+    const prefix = company?.name ? company.name.substring(0, 2).toUpperCase() : 'NK';
+    const autoNum = `${prefix}-SOP-${String(procedures.length + 1).padStart(3, '0')}`;
+    setNewProc((prev) => ({
+      ...prev,
+      isCustomDocNumber: nextCustom,
+      docNumber: nextCustom ? (prev.docNumber || autoNum) : (prev.clause ? autoNum : ''),
+    }));
+  };
 
   // Sync to local storage
   useEffect(() => {
@@ -777,25 +870,29 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
     e.preventDefault();
     if (!newProc.title.trim()) return;
 
+    const prefix = company?.name ? company.name.substring(0, 2).toUpperCase() : 'NK';
+    const autoDocNumber = `${prefix}-SOP-${String(procedures.length + 1).padStart(3, '0')}`;
+    const docNum = newProc.docNumber.trim() || autoDocNumber;
+    const clauseSelected = newProc.clause ? newProc.clause.split(' - ')[0] : 'Clause 7.5';
+
     const item: ProcedureItem = {
       id: Date.now().toString(),
-      docNumber: `NK-SOP-00${procedures.length + 1}`,
-      title: newProc.title,
-      clause: newProc.clause || 'Clause 7.5',
-      revision: newProc.revision || 'Rev 1.0',
-      status: 'Approved',
-      owner: newProc.owner || 'Quality Lead',
-      approvedDate: '22-Sep-2026',
-      nextReview: '22-Sep-2027',
+      docNumber: docNum,
+      title: newProc.title.trim(),
+      clause: clauseSelected,
+      revision: newProc.revision.startsWith('Rev') ? newProc.revision : `Rev ${newProc.revision}`,
+      status: newProc.status || 'Draft',
+      owner: newProc.author.trim() || newProc.approver.trim() || 'Quality Lead',
+      author: newProc.author.trim(),
+      approver: newProc.approver.trim(),
+      approvedDate: newProc.status === 'Approved' ? newProc.revisionDate : 'Pending Approval',
+      nextReview: newProc.nextReviewDate.trim() || '24-09-2027',
+      content: newProc.content,
+      revisionDate: newProc.revisionDate,
     };
 
     setProcedures([item, ...procedures]);
-    setNewProc({
-      title: '',
-      clause: 'Clause 7.5',
-      revision: 'Rev 1.0',
-      owner: 'Quality Lead',
-    });
+    showNotice(`Procedure "${item.docNumber} - ${item.title}" successfully created and registered.`);
     setIsProcModalOpen(false);
   };
 
@@ -983,7 +1080,7 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
             <div className="flex items-center gap-2.5 flex-wrap">
               <button
                 type="button"
-                onClick={() => setIsProcModalOpen(true)}
+                onClick={handleOpenNewProcModal}
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#1b3557] hover:bg-[#142842] text-white rounded-lg text-sm font-semibold shadow-xs transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4 text-white" />
@@ -1264,7 +1361,7 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg text-sm font-medium text-slate-800 shadow-2xs transition-colors cursor-pointer"
               >
                 <Upload className="w-4 h-4 text-slate-700" />
-                <span>Upload Document</span>
+                <span>Upload Documents</span>
               </button>
 
               <button
@@ -1500,7 +1597,9 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 relative">
             {/* Header */}
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">Upload Document</h2>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                {activeSubTab === 'procedures' ? 'Upload Procedure' : 'Upload Document'}
+              </h2>
               <button
                 type="button"
                 onClick={() => setIsUploadChoiceModalOpen(false)}
@@ -1512,7 +1611,9 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
 
             {/* Question Subtitle */}
             <p className="text-slate-600 text-sm sm:text-base font-normal mt-2.5 mb-6">
-              How would you like to upload this document?
+              {activeSubTab === 'procedures'
+                ? 'How would you like to upload this procedure?'
+                : 'How would you like to upload this document?'}
             </p>
 
             {/* Hidden native file pickers */}
@@ -2054,84 +2155,231 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
         </div>
       )}
 
-      {/* Modal 2: Create New Procedure */}
+      {/* Modal 2: Create New Procedure - Matching Pinned Image */}
       {isProcModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in duration-150">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-              <h3 className="font-bold text-lg text-slate-900">Create New Procedure</h3>
+          <div className="bg-white rounded-xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200 animate-in fade-in duration-150 max-h-[92vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-slate-900">New Procedure</h2>
               <button
+                type="button"
                 onClick={() => setIsProcModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 transition-colors p-1 -mr-1 rounded-lg hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleAddProcedure} className="space-y-4">
+              {/* Row 1: ISO 9001 Clause & Procedure Number */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    ISO 9001 Clause
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={newProc.clause}
+                      onChange={(e) => handleClauseChange(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white border border-blue-600 ring-2 ring-blue-500/20 rounded-lg text-sm text-slate-900 appearance-none pr-10 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-2xs cursor-pointer"
+                    >
+                      <option value="">Select clause...</option>
+                      {ISO_9001_CLAUSES.map((clause) => (
+                        <option key={clause} value={clause}>
+                          {clause}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-sm font-semibold text-slate-900">
+                      Procedure Number
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleToggleCustomProcNumber}
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                    >
+                      {newProc.isCustomDocNumber ? 'Auto-Generate Number' : 'Use Custom Number'}
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={newProc.docNumber}
+                    onChange={(e) =>
+                      setNewProc((prev) => ({ ...prev, docNumber: e.target.value }))
+                    }
+                    readOnly={!newProc.isCustomDocNumber}
+                    placeholder="Select a clause first"
+                    className={`w-full px-3.5 py-2.5 rounded-lg text-sm transition-all shadow-2xs font-mono ${
+                      newProc.isCustomDocNumber
+                        ? 'bg-white border border-slate-300 text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20'
+                        : 'bg-slate-50 border border-slate-200 text-slate-700 placeholder:text-slate-400 placeholder:font-mono cursor-not-allowed'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Title */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Procedure Title *
+                <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                  Title
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Management Review Procedure"
+                  placeholder="Procedure title..."
                   value={newProc.title}
-                  onChange={(e) => setNewProc({ ...newProc, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) =>
+                    setNewProc((prev) => ({ ...prev, title: e.target.value }))
+                  }
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-2xs"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Row 3: Status & Revision No. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">ISO Clause</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Clause 9.3"
-                    value={newProc.clause}
-                    onChange={(e) => setNewProc({ ...newProc, clause: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    Status
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={newProc.status}
+                      onChange={(e) =>
+                        setNewProc((prev) => ({ ...prev, status: e.target.value as ProcedureItem['status'] }))
+                      }
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 appearance-none pr-10 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-2xs cursor-pointer"
+                    >
+                      <option value="Draft">Draft</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Under Review">Under Review</option>
+                      <option value="Obsolete">Obsolete</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Initial Revision
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    Revision No.
                   </label>
                   <input
                     type="text"
                     value={newProc.revision}
-                    onChange={(e) => setNewProc({ ...newProc, revision: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) =>
+                      setNewProc((prev) => ({ ...prev, revision: e.target.value }))
+                    }
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-2xs"
                   />
                 </div>
               </div>
 
+              {/* Row 4: Revision Date & Next Review Date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    Revision Date
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={newProc.revisionDate}
+                      onChange={(e) =>
+                        setNewProc((prev) => ({ ...prev, revisionDate: e.target.value }))
+                      }
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-2xs pr-10"
+                    />
+                    <Calendar className="w-4 h-4 text-slate-600 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    Next Review Date
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="dd-mm-yyyy"
+                      value={newProc.nextReviewDate}
+                      onChange={(e) =>
+                        setNewProc((prev) => ({ ...prev, nextReviewDate: e.target.value }))
+                      }
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-2xs pr-10 placeholder:text-slate-500"
+                    />
+                    <Calendar className="w-4 h-4 text-slate-600 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 5: Author & Approver */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    Author
+                  </label>
+                  <input
+                    type="text"
+                    placeholder=""
+                    value={newProc.author}
+                    onChange={(e) =>
+                      setNewProc((prev) => ({ ...prev, author: e.target.value }))
+                    }
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-2xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                    Approver
+                  </label>
+                  <input
+                    type="text"
+                    placeholder=""
+                    value={newProc.approver}
+                    onChange={(e) =>
+                      setNewProc((prev) => ({ ...prev, approver: e.target.value }))
+                    }
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-2xs"
+                  />
+                </div>
+              </div>
+
+              {/* Row 6: Content (Markdown — optional) */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Custodian / Owner</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Quality Lead"
-                  value={newProc.owner}
-                  onChange={(e) => setNewProc({ ...newProc, owner: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                  Content <span className="text-slate-500 font-normal text-xs">(Markdown — optional)</span>
+                </label>
+                <textarea
+                  rows={6}
+                  value={newProc.content}
+                  onChange={(e) =>
+                    setNewProc((prev) => ({ ...prev, content: e.target.value }))
+                  }
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm font-mono text-slate-700 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-2xs resize-y"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsProcModalOpen(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#1b3557] hover:bg-[#142842] text-white rounded-xl text-sm font-semibold shadow-xs cursor-pointer"
+                  className="px-5 py-2 bg-[#1b3557] hover:bg-[#142842] text-white rounded-lg text-sm font-semibold shadow-xs transition-colors cursor-pointer"
                 >
-                  Save Procedure
+                  Create Procedure
                 </button>
               </div>
             </form>

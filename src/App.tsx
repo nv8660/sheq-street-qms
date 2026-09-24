@@ -342,25 +342,45 @@ export function App() {
     // Load target company's scoped data
     const compId = targetCompany.id;
     try {
+      const scopedDeleted: string[] = JSON.parse(
+        localStorage.getItem(`sheq_${compId}_deleted_ncr_ids`) || '[]'
+      );
+      const globalDeleted: string[] = JSON.parse(
+        localStorage.getItem('sheq_deleted_ncr_ids') || '[]'
+      );
+      const allDeletedIds = new Set([...scopedDeleted, ...globalDeleted].map(String));
+      const filterDeleted = (list: NCRItem[]) =>
+        list.filter((item) => !allDeletedIds.has(String(item.id)));
+
       const savedNcrs = localStorage.getItem(`sheq_${compId}_ncrs`);
-      if (savedNcrs) setNcrs(JSON.parse(savedNcrs));
-      else if (compId === initialCompany.id) setNcrs(initialNCRs);
+      if (savedNcrs !== null) {
+        const parsed = JSON.parse(savedNcrs);
+        setNcrs(Array.isArray(parsed) ? filterDeleted(parsed) : []);
+      } else if (compId === initialCompany.id) {
+        setNcrs(filterDeleted(initialNCRs));
+      } else {
+        setNcrs([]);
+      }
 
       const savedAudits = localStorage.getItem(`sheq_${compId}_auditRows`);
-      if (savedAudits) setAuditRows(JSON.parse(savedAudits));
+      if (savedAudits !== null) setAuditRows(JSON.parse(savedAudits));
       else if (compId === initialCompany.id) setAuditRows(initialAuditRows);
+      else setAuditRows([]);
 
       const savedHR = localStorage.getItem(`sheq_${compId}_hrData`);
-      if (savedHR) setHrData(JSON.parse(savedHR));
+      if (savedHR !== null) setHrData(JSON.parse(savedHR));
       else if (compId === initialCompany.id) setHrData(initialHRData);
+      else setHrData(initialHRData);
 
       const savedProcesses = localStorage.getItem(`sheq_${compId}_processes`);
-      if (savedProcesses) setProcesses(JSON.parse(savedProcesses));
+      if (savedProcesses !== null) setProcesses(JSON.parse(savedProcesses));
       else if (compId === initialCompany.id) setProcesses(initialProcessList);
+      else setProcesses([]);
 
       const savedReviews = localStorage.getItem(`sheq_${compId}_reviews`);
-      if (savedReviews) setReviews(JSON.parse(savedReviews));
+      if (savedReviews !== null) setReviews(JSON.parse(savedReviews));
       else if (compId === initialCompany.id) setReviews(initialReviews);
+      else setReviews([]);
     } catch {}
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -395,10 +415,36 @@ export function App() {
 
   const [ncrs, setNcrs] = useState<NCRItem[]>(() => {
     try {
-      const savedScoped = localStorage.getItem(`sheq_${initialCompany.id}_ncrs`);
-      if (savedScoped) return JSON.parse(savedScoped);
+      const activeCompId = (() => {
+        try {
+          const s = localStorage.getItem('sheq_company');
+          return s ? JSON.parse(s)?.id || initialCompany.id : initialCompany.id;
+        } catch {
+          return initialCompany.id;
+        }
+      })();
+
+      const scopedDeleted: string[] = JSON.parse(
+        localStorage.getItem(`sheq_${activeCompId}_deleted_ncr_ids`) || '[]'
+      );
+      const globalDeleted: string[] = JSON.parse(
+        localStorage.getItem('sheq_deleted_ncr_ids') || '[]'
+      );
+      const allDeletedIds = new Set([...scopedDeleted, ...globalDeleted].map(String));
+      const filterDeleted = (list: NCRItem[]) =>
+        list.filter((item) => !allDeletedIds.has(String(item.id)));
+
+      const savedScoped = localStorage.getItem(`sheq_${activeCompId}_ncrs`);
+      if (savedScoped !== null) {
+        const parsed = JSON.parse(savedScoped);
+        if (Array.isArray(parsed)) return filterDeleted(parsed);
+      }
       const saved = localStorage.getItem('sheq_ncrs');
-      return saved ? JSON.parse(saved) : initialNCRs;
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return filterDeleted(parsed);
+      }
+      return filterDeleted(initialNCRs);
     } catch {
       return initialNCRs;
     }
@@ -406,10 +452,18 @@ export function App() {
 
   const [auditRows, setAuditRows] = useState<AuditProcessRow[]>(() => {
     try {
-      const savedScoped = localStorage.getItem(`sheq_${initialCompany.id}_auditRows`);
-      if (savedScoped) return JSON.parse(savedScoped);
+      const activeCompId = (() => {
+        try {
+          const s = localStorage.getItem('sheq_company');
+          return s ? JSON.parse(s)?.id || initialCompany.id : initialCompany.id;
+        } catch {
+          return initialCompany.id;
+        }
+      })();
+      const savedScoped = localStorage.getItem(`sheq_${activeCompId}_auditRows`);
+      if (savedScoped !== null) return JSON.parse(savedScoped);
       const saved = localStorage.getItem('sheq_auditRows');
-      return saved ? JSON.parse(saved) : initialAuditRows;
+      return saved !== null ? JSON.parse(saved) : initialAuditRows;
     } catch {
       return initialAuditRows;
     }
@@ -417,10 +471,18 @@ export function App() {
 
   const [hrData, setHrData] = useState<typeof initialHRData>(() => {
     try {
-      const savedScoped = localStorage.getItem(`sheq_${initialCompany.id}_hrData`);
-      if (savedScoped) return JSON.parse(savedScoped);
+      const activeCompId = (() => {
+        try {
+          const s = localStorage.getItem('sheq_company');
+          return s ? JSON.parse(s)?.id || initialCompany.id : initialCompany.id;
+        } catch {
+          return initialCompany.id;
+        }
+      })();
+      const savedScoped = localStorage.getItem(`sheq_${activeCompId}_hrData`);
+      if (savedScoped !== null) return JSON.parse(savedScoped);
       const saved = localStorage.getItem('sheq_hrData');
-      return saved ? JSON.parse(saved) : initialHRData;
+      return saved !== null ? JSON.parse(saved) : initialHRData;
     } catch {
       return initialHRData;
     }
@@ -428,10 +490,18 @@ export function App() {
 
   const [reviews, setReviews] = useState<ReviewMeeting[]>(() => {
     try {
-      const savedScoped = localStorage.getItem(`sheq_${initialCompany.id}_reviews`);
-      if (savedScoped) return JSON.parse(savedScoped);
+      const activeCompId = (() => {
+        try {
+          const s = localStorage.getItem('sheq_company');
+          return s ? JSON.parse(s)?.id || initialCompany.id : initialCompany.id;
+        } catch {
+          return initialCompany.id;
+        }
+      })();
+      const savedScoped = localStorage.getItem(`sheq_${activeCompId}_reviews`);
+      if (savedScoped !== null) return JSON.parse(savedScoped);
       const saved = localStorage.getItem('sheq_reviews');
-      return saved ? JSON.parse(saved) : initialReviews;
+      return saved !== null ? JSON.parse(saved) : initialReviews;
     } catch {
       return initialReviews;
     }
@@ -439,10 +509,18 @@ export function App() {
 
   const [processes, setProcesses] = useState<ProcessControlItem[]>(() => {
     try {
-      const savedScoped = localStorage.getItem(`sheq_${initialCompany.id}_processes`);
-      if (savedScoped) return JSON.parse(savedScoped);
+      const activeCompId = (() => {
+        try {
+          const s = localStorage.getItem('sheq_company');
+          return s ? JSON.parse(s)?.id || initialCompany.id : initialCompany.id;
+        } catch {
+          return initialCompany.id;
+        }
+      })();
+      const savedScoped = localStorage.getItem(`sheq_${activeCompId}_processes`);
+      if (savedScoped !== null) return JSON.parse(savedScoped);
       const saved = localStorage.getItem('sheq_processes');
-      return saved ? JSON.parse(saved) : initialProcessList;
+      return saved !== null ? JSON.parse(saved) : initialProcessList;
     } catch {
       return initialProcessList;
     }
@@ -479,12 +557,14 @@ export function App() {
     try {
       localStorage.removeItem('sheq_company');
       localStorage.removeItem('sheq_ncrs');
+      localStorage.removeItem('sheq_deleted_ncr_ids');
       localStorage.removeItem('sheq_auditRows');
       localStorage.removeItem('sheq_hrData');
       localStorage.removeItem('sheq_reviews');
       localStorage.removeItem('sheq_processes');
       if (company?.id) {
         localStorage.removeItem(`sheq_${company.id}_ncrs`);
+        localStorage.removeItem(`sheq_${company.id}_deleted_ncr_ids`);
         localStorage.removeItem(`sheq_${company.id}_auditRows`);
         localStorage.removeItem(`sheq_${company.id}_hrData`);
         localStorage.removeItem(`sheq_${company.id}_reviews`);
@@ -501,28 +581,69 @@ export function App() {
 
   // NCR handlers
   const handleAddNCR = (newNcr: Partial<NCRItem>) => {
-    const item: NCRItem = {
-      id: Date.now().toString(),
-      ncrNumber: newNcr.ncrNumber || `NCR-2024-00${ncrs.length + 1}`,
-      issuedTo: newNcr.issuedTo || 'Quality Dept',
-      dateIssued: newNcr.dateIssued || '21-09-2026',
-      dueDate: newNcr.dueDate || '05-10-2026',
-      daysLeft: newNcr.daysLeft ?? (newNcr.daysToClose || 14),
-      openPeriod: newNcr.openPeriod || '1d',
-      status: newNcr.status || 'OPEN',
-      type: newNcr.type || 'Internal',
-      locked: false,
-      problemSummary: newNcr.problemSummary,
-      description: newNcr.description,
-      raisedBy: newNcr.raisedBy,
-      daysToClose: newNcr.daysToClose,
-      photos: newNcr.photos,
-    };
-    setNcrs([item, ...ncrs]);
+    setNcrs((prev) => {
+      const item: NCRItem = {
+        id: Date.now().toString(),
+        ncrNumber: newNcr.ncrNumber || `NCR-2026-00${prev.length + 1}`,
+        issuedTo: newNcr.issuedTo || 'Quality Dept',
+        dateIssued: newNcr.dateIssued || '21-09-2026',
+        dueDate: newNcr.dueDate || '05-10-2026',
+        daysLeft: newNcr.daysLeft ?? (newNcr.daysToClose || 14),
+        openPeriod: newNcr.openPeriod || '1d',
+        status: newNcr.status || 'OPEN',
+        type: newNcr.type || 'Internal',
+        locked: false,
+        problemSummary: newNcr.problemSummary,
+        description: newNcr.description,
+        raisedBy: newNcr.raisedBy,
+        daysToClose: newNcr.daysToClose,
+        photos: newNcr.photos,
+      };
+      const updated = [item, ...prev];
+      const activeCompId = company?.id || initialCompany.id;
+      try {
+        localStorage.setItem('sheq_ncrs', JSON.stringify(updated));
+        if (activeCompId) {
+          localStorage.setItem(`sheq_${activeCompId}_ncrs`, JSON.stringify(updated));
+        }
+      } catch {}
+      return updated;
+    });
   };
 
   const handleDeleteNCR = (id: string) => {
-    setNcrs(ncrs.filter((n) => n.id !== id));
+    setNcrs((prev) => {
+      const updated = prev.filter((n) => String(n.id) !== String(id));
+      const activeCompId = company?.id || initialCompany.id;
+      try {
+        localStorage.setItem('sheq_ncrs', JSON.stringify(updated));
+        if (activeCompId) {
+          localStorage.setItem(`sheq_${activeCompId}_ncrs`, JSON.stringify(updated));
+        }
+
+        // Record deleted NCR ID to guarantee permanent deletion across page reloads and tab navigations
+        const scopedDeletedKey = `sheq_${activeCompId}_deleted_ncr_ids`;
+        const existingScopedDeleted: string[] = JSON.parse(
+          localStorage.getItem(scopedDeletedKey) || '[]'
+        );
+        if (!existingScopedDeleted.includes(String(id))) {
+          existingScopedDeleted.push(String(id));
+          localStorage.setItem(scopedDeletedKey, JSON.stringify(existingScopedDeleted));
+        }
+
+        const globalDeletedKey = 'sheq_deleted_ncr_ids';
+        const existingGlobalDeleted: string[] = JSON.parse(
+          localStorage.getItem(globalDeletedKey) || '[]'
+        );
+        if (!existingGlobalDeleted.includes(String(id))) {
+          existingGlobalDeleted.push(String(id));
+          localStorage.setItem(globalDeletedKey, JSON.stringify(existingGlobalDeleted));
+        }
+      } catch (err) {
+        console.error('Failed to immediately persist deleted NCR:', err);
+      }
+      return updated;
+    });
   };
 
   // Audit handlers
