@@ -78,6 +78,10 @@ export interface NCRItem {
   raisedBy?: string;
   daysToClose?: number;
   photos?: string[];
+  recipientSubmitted?: string;
+  rootCause?: string;
+  correctiveAction?: string;
+  actions?: string;
 }
 
 export interface AuditProcessRow {
@@ -139,6 +143,15 @@ export interface AuditReportItem {
   findings?: AuditFindingItem[];
 }
 
+export interface CalibrationEvent {
+  id: string;
+  date: string;
+  calibratedBy: string;
+  result: 'Pass' | 'Fail' | 'Adjusted' | string;
+  certificateNo?: string;
+  notes?: string;
+}
+
 export interface CalibrationInstrument {
   id: string;
   instrumentId: string;
@@ -155,6 +168,7 @@ export interface CalibrationInstrument {
   notes?: string;
   certificateName?: string;
   certificateUrl?: string;
+  calibrationEvents?: CalibrationEvent[];
 }
 
 export interface HRData {

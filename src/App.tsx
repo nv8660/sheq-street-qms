@@ -646,6 +646,20 @@ export function App() {
     });
   };
 
+  const handleUpdateNCR = (updatedNcr: NCRItem) => {
+    setNcrs((prev) => {
+      const updated = prev.map((n) => (n.id === updatedNcr.id ? updatedNcr : n));
+      const activeCompId = company?.id || initialCompany.id;
+      try {
+        localStorage.setItem('sheq_ncrs', JSON.stringify(updated));
+        if (activeCompId) {
+          localStorage.setItem(`sheq_${activeCompId}_ncrs`, JSON.stringify(updated));
+        }
+      } catch {}
+      return updated;
+    });
+  };
+
   // Audit handlers
   const handleAddAuditProcess = (name: string) => {
     const newProcess: AuditProcessRow = {
@@ -758,6 +772,21 @@ export function App() {
     });
   };
 
+  const [auditYear, setAuditYear] = useState<string>(() => {
+    try {
+      return localStorage.getItem('sheq_selected_audit_year') || '2026';
+    } catch {
+      return '2026';
+    }
+  });
+
+  const handleAuditYearChange = (newYear: string) => {
+    setAuditYear(newYear);
+    try {
+      localStorage.setItem('sheq_selected_audit_year', newYear);
+    } catch {}
+  };
+
   const renderDashboard = () => (
     <DashboardView
       company={company}
@@ -765,6 +794,8 @@ export function App() {
       ncrs={ncrs}
       auditRows={auditRows}
       processes={processes}
+      auditYear={auditYear}
+      onAuditYearChange={handleAuditYearChange}
       onNavigate={handleNavigate}
       onLoadDemoData={handleLoadDemoData}
       onAddCompany={handleAddNewCompany}
@@ -808,6 +839,8 @@ export function App() {
           <AuditManagementView
             company={company}
             rows={auditRows}
+            activeYear={auditYear}
+            onYearChange={handleAuditYearChange}
             onAddProcess={handleAddAuditProcess}
             onDeleteProcess={handleDeleteAuditProcess}
             onUpdateRow={handleUpdateAuditRow}
@@ -820,6 +853,7 @@ export function App() {
             company={company}
             ncrs={ncrs}
             onAddNCR={handleAddNCR}
+            onUpdateNCR={handleUpdateNCR}
             onDeleteNCR={handleDeleteNCR}
           />
         );

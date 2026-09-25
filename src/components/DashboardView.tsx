@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { NavigationTab, Company } from '../types';
 import { AddCompanyModal } from './AddCompanyModal';
-import { calculateAuditReadiness } from '../utils/auditReadiness';
+import { calculateAuditReadiness, YEARLY_DEFAULT_ROWS } from '../utils/auditReadiness';
 
 interface DashboardViewProps {
   company: Company;
@@ -27,6 +27,8 @@ interface DashboardViewProps {
   ncrs?: import('../types').NCRItem[];
   auditRows?: import('../types').AuditProcessRow[];
   processes?: import('../types').ProcessControlItem[];
+  auditYear?: string;
+  onAuditYearChange?: (year: string) => void;
   onNavigate: (tab: NavigationTab) => void;
   onLoadDemoData: () => void;
   onAddCompany?: (newCompany: Company) => void;
@@ -39,6 +41,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   ncrs = [],
   auditRows = [],
   processes = [],
+  auditYear = '2026',
+  onAuditYearChange,
   onNavigate,
   onLoadDemoData,
   onAddCompany,
@@ -53,7 +57,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const compPrefix = company?.name ? company.name.split(' ').map((w) => w[0]).join('').slice(0, 3).toUpperCase() : 'NK';
 
-  // Live dynamic Audit Readiness & Overall Score computed from auditRows & ncrs
+  // Live dynamic Audit Readiness & Overall Score computed from active auditYear & auditRows
   const {
     readinessScore: auditReadinessScore,
     overallAuditScore,
@@ -62,13 +66,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     let reports: any[] = [];
     try {
       const saved =
+        localStorage.getItem('sheq_audit_reports_v4') ||
         localStorage.getItem(`sheq_${company?.id}_audit_reports`) ||
-        localStorage.getItem('sheq_audit_reports_v3') ||
         localStorage.getItem('sheq_audit_reports');
       if (saved) reports = JSON.parse(saved);
     } catch {}
-    return calculateAuditReadiness(auditRows, ncrs, reports);
-  }, [auditRows, ncrs, company?.id]);
+
+    const yearReports = reports.filter((r) => {
+      if (r.auditDate && r.auditDate.startsWith(auditYear)) return true;
+      if (r.reportNo && (r.reportNo.includes(auditYear) || r.reportNo.includes(auditYear.slice(2)))) return true;
+      return false;
+    });
+
+    let targetRows = YEARLY_DEFAULT_ROWS[auditYear] || auditRows;
+    try {
+      const savedRows = localStorage.getItem(`sheq_${company?.id}_auditRows_${auditYear}`);
+      if (savedRows) {
+        const parsed = JSON.parse(savedRows);
+        if (Array.isArray(parsed) && parsed.length > 0) targetRows = parsed;
+      }
+    } catch {}
+
+    return calculateAuditReadiness(targetRows, ncrs, yearReports, auditYear);
+  }, [auditRows, ncrs, company?.id, auditYear]);
 
   // Closest due NCR calculation
   const openNCRsWithDue = ncrs
@@ -164,27 +184,34 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Subtle decorative background pattern */}
         <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-white/5 to-transparent pointer-events-none" />
 
-        <div className="flex items-start justify-between relative z-10">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 relative z-10">
           <div>
-            <div className="text-xs font-bold uppercase tracking-widest text-[#22d3ee] mb-1.5">
-              AUDIT READINESS
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+              <span className="text-xs font-bold uppercase tracking-widest text-[#22d3ee]">
+                AUDIT READINESS
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-400/20 text-cyan-200 border border-cyan-400/30">
+                CYCLE {auditYear}
+              </span>
             </div>
             <h2 className="text-lg sm:text-xl font-medium text-white tracking-tight">
               {auditReadinessHeadline}
             </h2>
           </div>
 
-          <div className="flex items-baseline">
-            <span className="text-5xl sm:text-6xl font-extrabold tracking-tight text-white leading-none">
-              {auditReadinessScore}
-            </span>
-            <span className="text-2xl sm:text-3xl font-bold text-[#67e8f9] ml-1">
-              %
-            </span>
+          <div className="flex items-center self-start sm:self-auto flex-shrink-0">
+            <div className="flex items-baseline bg-black/20 backdrop-blur-xs px-4 py-2 rounded-xl border border-white/10">
+              <span className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white leading-none">
+                {auditReadinessScore}
+              </span>
+              <span className="text-xl sm:text-2xl font-bold text-[#67e8f9] ml-1">
+                %
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Progress Bar matching screenshot */}
+        {/* Progress Bar matching active readiness */}
         <div className="mt-6 relative z-10">
           <div className="w-full bg-[#072439] rounded-full h-3 overflow-hidden">
             <div
@@ -200,6 +227,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="flex justify-between text-xs text-slate-300/80 font-mono mt-2">
             <span>0%</span>
+            <span>Overall Process Conformance: {overallAuditScore}%</span>
             <span>100%</span>
           </div>
         </div>

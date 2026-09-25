@@ -6,6 +6,12 @@ import {
   ReviewMeeting,
   ProcessControlItem,
   Company,
+  PolicyItem,
+  ObjectiveItem,
+  StakeholderIssue,
+  RiskItem,
+  OpportunityItem,
+  TeamMemberItem,
 } from '../types';
 
 export const initialCompany: Company = {
@@ -23,75 +29,58 @@ export const initialCompany: Company = {
   employeesCount: '11-50 employees',
 };
 
-
 export const initialNCRs: NCRItem[] = [
   {
     id: '1',
-    ncrNumber: 'NCR-2024-002',
-    issuedTo: 'Warehouse',
-    dateIssued: '27-Aug-2026',
-    dueDate: '26-Sept-2026',
-    daysLeft: 9,
-    openPeriod: '21d',
-    status: 'OPEN',
-    type: 'INTERNAL',
+    ncrNumber: 'NCR-2024-001',
+    issuedTo: 'Production Department',
+    dateIssued: '2-Aug-2026',
+    dueDate: '1-Oct-2026',
+    raisedBy: 'QC Inspector',
+    daysLeft: 6,
+    openPeriod: '54 days',
+    recipientSubmitted: 'No',
+    status: 'IN PROGRESS',
+    type: 'Internal',
+    problemSummary: 'Non-conforming raw materials received from Supplier A',
+    description: 'Batch #4521 of steel components failed dimensional inspection. 15% of parts out of tolerance.',
+    rootCause: 'Supplier calibration equipment out of service',
+    correctiveAction: '100% inspection of incoming batch. Supplier notified.',
   },
   {
     id: '2',
     ncrNumber: 'NCR-2024-002',
-    issuedTo: 'Warehouse',
+    issuedTo: 'Warehouse & Logistics',
     dateIssued: '27-Aug-2026',
-    dueDate: '26-Sept-2026',
+    dueDate: '26-Sep-2026',
+    raisedBy: 'Warehouse Lead',
     daysLeft: 9,
-    openPeriod: '21d',
+    openPeriod: '21 days',
+    recipientSubmitted: 'Yes',
     status: 'OPEN',
-    type: 'INTERNAL',
+    type: 'Internal',
+    problemSummary: 'Damaged packaging observed on incoming polymer shipment lot #883',
+    description: 'Shipment delivered with damaged shrink wrapping and moisture exposure.',
+    rootCause: 'Inadequate transit strapping by logistics carrier.',
+    correctiveAction: 'Quarantine lot #883; vendor issued credit memo.',
   },
   {
     id: '3',
-    ncrNumber: 'NCR-2024-001',
-    issuedTo: 'Production Department',
-    dateIssued: '2-Aug-2026',
-    dueDate: '1-Oct-2026',
-    daysLeft: 14,
-    openPeriod: '46d',
-    status: 'IN PROGRESS',
-    type: 'INTERNAL',
-  },
-  {
-    id: '4',
-    ncrNumber: 'NCR-2024-001',
-    issuedTo: 'Production Department',
-    dateIssued: '2-Aug-2026',
-    dueDate: '1-Oct-2026',
-    daysLeft: 14,
-    openPeriod: '46d',
-    status: 'IN PROGRESS',
-    type: 'INTERNAL',
-  },
-  {
-    id: '5',
     ncrNumber: 'NCR-2024-003',
     issuedTo: 'Maintenance',
     dateIssued: '18-Jul-2026',
-    dueDate: '11-Sept-2026',
+    dueDate: '11-Sep-2026',
+    raisedBy: 'Maintenance Supervisor',
     daysLeft: -3,
-    openPeriod: '58d',
+    openPeriod: '58 days',
+    recipientSubmitted: 'Yes',
     status: 'CLOSED',
-    type: 'INTERNAL',
+    type: 'Internal',
     locked: true,
-  },
-  {
-    id: '6',
-    ncrNumber: 'NCR-2024-003',
-    issuedTo: 'Maintenance',
-    dateIssued: '18-Jul-2026',
-    dueDate: '11-Sept-2026',
-    daysLeft: -3,
-    openPeriod: '58d',
-    status: 'CLOSED',
-    type: 'INTERNAL',
-    locked: true,
+    problemSummary: 'Hydraulic seal leak resolved and pressure tested',
+    description: 'Main pump seal ruptured during scheduled run.',
+    rootCause: 'Elastomer wear beyond rated cycle limits.',
+    correctiveAction: 'Upgraded to high-temp Viton seals.',
   },
 ];
 
@@ -112,7 +101,7 @@ export const initialAuditRows: AuditProcessRow[] = [
   },
   {
     id: '2',
-    processName: 'Purchasing',
+    processName: 'Purchasing & ASL',
     months: {
       FEB: { status: 'overdue', initials: 'MK' },
       AUG: { status: 'completed', initials: 'JS' },
@@ -123,7 +112,7 @@ export const initialAuditRows: AuditProcessRow[] = [
   },
   {
     id: '3',
-    processName: 'Production',
+    processName: 'Production & Extrusion',
     months: {
       MAR: { status: 'overdue', initials: 'JS' },
       JUN: { status: 'overdue', initials: 'MK' },
@@ -136,55 +125,6 @@ export const initialAuditRows: AuditProcessRow[] = [
   },
   {
     id: '4',
-    processName: 'Customer Satisfaction',
-    months: {
-      MAY: { status: 'overdue', initials: 'JS' },
-      OCT: { status: 'planned', initials: 'MK' },
-    },
-    ncrs: '—',
-    ofis: '—',
-    totalScore: '—',
-  },
-  {
-    id: '5',
-    processName: 'Document Control',
-    months: {
-      JAN: { status: 'overdue', initials: 'JS' },
-      APR: { status: 'overdue', initials: 'JS' },
-      JUN: { status: 'completed' },
-      JUL: { status: 'overdue', initials: 'MK' },
-      OCT: { status: 'planned', initials: 'JS' },
-    },
-    ncrs: 2,
-    ofis: 2,
-    totalScore: '70%',
-  },
-  {
-    id: '6',
-    processName: 'Purchasing',
-    months: {
-      FEB: { status: 'overdue', initials: 'MK' },
-      AUG: { status: 'completed', initials: 'JS' },
-    },
-    ncrs: 2,
-    ofis: 2,
-    totalScore: '70%',
-  },
-  {
-    id: '7',
-    processName: 'Production',
-    months: {
-      MAR: { status: 'overdue', initials: 'JS' },
-      JUN: { status: 'overdue', initials: 'MK' },
-      SEP: { status: 'due', initials: 'JS' },
-      NOV: { status: 'planned', initials: 'MK' },
-    },
-    ncrs: '—',
-    ofis: '—',
-    totalScore: '—',
-  },
-  {
-    id: '8',
     processName: 'Customer Satisfaction',
     months: {
       MAY: { status: 'overdue', initials: 'JS' },
@@ -212,9 +152,9 @@ export const initialReviews: ReviewMeeting[] = [
     venue: 'rmz',
     apologies: 'None',
     objective:
-      "The organisation's management review of the quality management system to ensure suitability, adequacy and effectiveness. The review is to include the assessment of opportunities for improvement and any potential changes to the quality management system, including quality policy, objectives & targets, and their alignment with business objectives and overall strategy.",
+      "Management review of the quality management system to ensure suitability, adequacy and effectiveness, including improvement opportunities and quality policy alignment.",
     agenda:
-      "1) Quality management system documents status.\n2) Quality policy & objectives\n3) External and internal issues\n4) Risks and opportunities\n5) Audit results:\n   a) Internal audits\n   b) External audits\n6) Customer satisfaction & feedback\n7) Supplier performance\n8) Non-conformance & corrective actions (CAPA)\n9) Changes that could affect the QMS\n10) Resource adequacy & improvements",
+      "1) QMS documents status\n2) Quality policy & objectives\n3) External & internal issues\n4) Risks & opportunities\n5) Audit results (internal/external)\n6) Customer satisfaction\n7) Supplier performance\n8) NCR & CAPA\n9) QMS changes\n10) Resource adequacy",
   },
 ];
 
@@ -227,69 +167,16 @@ export const initialProcessList: ProcessControlItem[] = [
     hasFlowchart: true,
     hasQCP: false,
     flowchartSteps: [
-      {
-        id: 'step-1',
-        stepNumber: 1,
-        title: 'Collection & Weighbridge Inspection',
-        responsibleRole: 'Logistics Officer',
-        inputs: 'Raw post-industrial waste batches',
-        outputs: 'Weighed and categorized lot voucher',
-      },
-      {
-        id: 'step-2',
-        stepNumber: 2,
-        title: 'Optical & Manual Polymer Sorting',
-        responsibleRole: 'Sorting Line Lead',
-        inputs: 'Bulk scrap materials',
-        outputs: 'Single-grade plastic polymers (HDPE, PP, PET)',
-      },
-      {
-        id: 'step-3',
-        stepNumber: 3,
-        title: 'Hot Wash, Friction Cleaning & Shredding',
-        responsibleRole: 'Plant Operator',
-        inputs: 'Sorted plastic fractions & wash chemicals',
-        outputs: 'Clean washed regrind flakes (<12mm)',
-      },
-      {
-        id: 'step-4',
-        stepNumber: 4,
-        title: 'Twin-Screw Extrusion & Pelletizing',
-        responsibleRole: 'Extruder Tech',
-        inputs: 'Clean dry polymer flakes',
-        outputs: 'Uniform recycled resin pellets',
-      },
-      {
-        id: 'step-5',
-        stepNumber: 5,
-        title: 'Quality Lab Verification & Packing',
-        responsibleRole: 'QC Inspector',
-        inputs: 'Resin samples',
-        outputs: 'Certificate of Analysis (CoA) & 25kg bags',
-      },
+      { id: 'step-1', stepNumber: 1, title: 'Collection & Weighbridge Inspection', responsibleRole: 'Logistics Officer', inputs: 'Raw post-industrial waste batches', outputs: 'Weighed and categorized lot voucher' },
+      { id: 'step-2', stepNumber: 2, title: 'Optical & Manual Polymer Sorting', responsibleRole: 'Sorting Line Lead', inputs: 'Bulk scrap materials', outputs: 'Single-grade plastic polymers (HDPE, PP, PET)' },
+      { id: 'step-3', stepNumber: 3, title: 'Hot Wash, Friction Cleaning & Shredding', responsibleRole: 'Plant Operator', inputs: 'Sorted plastic fractions & wash chemicals', outputs: 'Clean washed regrind flakes (<12mm)' },
+      { id: 'step-4', stepNumber: 4, title: 'Twin-Screw Extrusion & Pelletizing', responsibleRole: 'Extruder Tech', inputs: 'Clean dry polymer flakes', outputs: 'Uniform recycled resin pellets' },
+      { id: 'step-5', stepNumber: 5, title: 'Quality Lab Verification & Packing', responsibleRole: 'QC Inspector', inputs: 'Resin samples', outputs: 'Certificate of Analysis (CoA) & 25kg bags' },
     ],
     qcpCheckpoints: [
-      {
-        id: 'qcp-1',
-        parameter: 'Moisture Content',
-        specification: '< 0.08%',
-        frequency: 'Every production lot',
-        acceptanceCriteria: 'ASTM D6980 moisture analyzer pass',
-      },
-      {
-        id: 'qcp-2',
-        parameter: 'Melt Flow Index (MFI)',
-        specification: '2.5 ± 0.35 g/10 min',
-        frequency: 'Every 2 hours',
-        acceptanceCriteria: 'ISO 1133 standard extrusion index',
-      },
-      {
-        id: 'qcp-3',
-        parameter: 'Contamination & Foreign Inclusions',
-        specification: '0 black specs > 0.5mm',
-        frequency: 'Hourly optical scan',
-        acceptanceCriteria: 'Visual plaque test approval',
-      },
+      { id: 'qcp-1', parameter: 'Moisture Content', specification: '< 0.08%', frequency: 'Every production lot', acceptanceCriteria: 'ASTM D6980 moisture analyzer pass' },
+      { id: 'qcp-2', parameter: 'Melt Flow Index (MFI)', specification: '2.5 ± 0.35 g/10 min', frequency: 'Every 2 hours', acceptanceCriteria: 'ISO 1133 standard extrusion index' },
+      { id: 'qcp-3', parameter: 'Contamination & Inclusions', specification: '0 black specs > 0.5mm', frequency: 'Hourly optical scan', acceptanceCriteria: 'Visual plaque test approval' },
     ],
   },
   {
@@ -300,43 +187,22 @@ export const initialProcessList: ProcessControlItem[] = [
     hasFlowchart: true,
     hasQCP: true,
     flowchartSteps: [
-      {
-        id: 'step-201',
-        stepNumber: 1,
-        title: 'Tool Setup & Mold Clamping',
-        responsibleRole: 'Tooling Tech',
-        inputs: 'Mold spec sheet',
-        outputs: 'Clamped & verified mold fixture',
-      },
-      {
-        id: 'step-202',
-        stepNumber: 2,
-        title: 'Resin Drying & Barrel Feeding',
-        responsibleRole: 'Material Handler',
-        inputs: 'Virgin/recycled polymer',
-        outputs: 'Dry resin at 80°C hopper feed',
-      },
+      { id: 'step-201', stepNumber: 1, title: 'Tool Setup & Mold Clamping', responsibleRole: 'Tooling Tech', inputs: 'Mold spec sheet', outputs: 'Clamped & verified mold fixture' },
+      { id: 'step-202', stepNumber: 2, title: 'Resin Drying & Barrel Feeding', responsibleRole: 'Material Handler', inputs: 'Virgin/recycled polymer', outputs: 'Dry resin at 80°C hopper feed' },
     ],
     qcpCheckpoints: [
-      {
-        id: 'qcp-201',
-        parameter: 'Cycle Time',
-        specification: '24.5 ± 1.0 sec',
-        frequency: 'Continuous PLC log',
-        acceptanceCriteria: 'Auto rejection if > 26.0 sec',
-      },
+      { id: 'qcp-201', parameter: 'Cycle Time', specification: '24.5 ± 1.0 sec', frequency: 'Continuous PLC log', acceptanceCriteria: 'Auto rejection if > 26.0 sec' },
     ],
   },
 ];
 
-export const initialPolicies: import('../types').PolicyItem[] = [
+export const initialPolicies: PolicyItem[] = [
   {
     id: 'pol-1',
     title: 'Quality Policy Statement',
     category: 'QUALITY',
     status: 'DRAFT',
-    content:
-      'Top Management of nk is committed to consistently satisfying customer requirements, adhering to ISO 9001:2015 requirements, and driving continual improvement of the Quality Management System through structured auditing and objective tracking.',
+    content: 'Top Management of nk is committed to consistently satisfying customer requirements, adhering to ISO 9001:2015 requirements, and driving continual improvement of the QMS through structured auditing and objective tracking.',
     dateCreated: '16 Sep 2026',
   },
   {
@@ -344,8 +210,7 @@ export const initialPolicies: import('../types').PolicyItem[] = [
     title: 'Occupational Health & Safety Policy',
     category: 'SAFETY',
     status: 'APPROVED',
-    content:
-      'nk prioritizes zero-harm workplace environments by preventing injury, reducing occupational health hazards, and consulting employees across all operations.',
+    content: 'nk prioritizes zero-harm workplace environments by preventing injury, reducing occupational health hazards, and consulting employees across all operations.',
     dateCreated: '12 Sep 2026',
   },
   {
@@ -353,43 +218,18 @@ export const initialPolicies: import('../types').PolicyItem[] = [
     title: 'Environmental & Sustainability Policy Statement',
     category: 'ENVIRONMENT',
     status: 'ACTIVE',
-    content:
-      'nk is committed to minimizing emissions, promoting closed-loop recycling processes, and complying with all South African environmental legislation.',
+    content: 'nk is committed to minimizing emissions, promoting closed-loop recycling processes, and complying with all South African environmental legislation.',
     dateCreated: '08 Sep 2026',
   },
 ];
 
-export const initialObjectives: import('../types').ObjectiveItem[] = [
-  {
-    id: 'obj-1',
-    objective: 'Achieve ISO 9001:2015 First-Time Certification',
-    targetMetric: 'Audit score ≥ 85%',
-    owner: 'Quality Manager',
-    dueDate: '30-Oct-2026',
-    progress: 85,
-    status: 'ON TRACK',
-  },
-  {
-    id: 'obj-2',
-    objective: 'Reduce Customer Complaint Response Time',
-    targetMetric: '< 24 Hours initial response',
-    owner: 'Customer Success Lead',
-    dueDate: '31-Dec-2026',
-    progress: 92,
-    status: 'ACHIEVED',
-  },
-  {
-    id: 'obj-3',
-    objective: 'Resolve Internal NCRs Within SLA',
-    targetMetric: '100% closed within 30 days',
-    owner: 'Operations Manager',
-    dueDate: '15-Nov-2026',
-    progress: 68,
-    status: 'AT RISK',
-  },
+export const initialObjectives: ObjectiveItem[] = [
+  { id: 'obj-1', objective: 'Achieve ISO 9001:2015 First-Time Certification', targetMetric: 'Audit score ≥ 85%', owner: 'Quality Manager', dueDate: '30-Oct-2026', progress: 85, status: 'ON TRACK' },
+  { id: 'obj-2', objective: 'Reduce Customer Complaint Response Time', targetMetric: '< 24 Hours initial response', owner: 'Customer Success Lead', dueDate: '31-Dec-2026', progress: 92, status: 'ACHIEVED' },
+  { id: 'obj-3', objective: 'Resolve Internal NCRs Within SLA', targetMetric: '100% closed within 30 days', owner: 'Operations Manager', dueDate: '15-Nov-2026', progress: 68, status: 'AT RISK' },
 ];
 
-export const initialStakeholders: import('../types').StakeholderIssue[] = [
+export const initialStakeholders: StakeholderIssue[] = [
   {
     id: 'sh-1',
     stakeholder: 'Key Commercial Customers',
@@ -425,7 +265,7 @@ export const initialStakeholders: import('../types').StakeholderIssue[] = [
   },
 ];
 
-export const initialRisks: import('../types').RiskItem[] = [
+export const initialRisks: RiskItem[] = [
   {
     id: 'risk-1',
     riskDescription: 'Raw material polymer contamination causing extruder nozzle clogs',
@@ -433,7 +273,7 @@ export const initialRisks: import('../types').RiskItem[] = [
     consequence: 4,
     likelihood: 3,
     impact: 4,
-    riskScore: 6, // 4 + 3 - 1 = 6 (as requested: 4+3=6)
+    riskScore: 6,
     level: 'MEDIUM',
     mitigation: '1. Implement optical multi-stage flake sorters\n2. Install dual 80-mesh melt screen changers\n3. Pre-test melt flow rate per incoming batch',
   },
@@ -444,7 +284,7 @@ export const initialRisks: import('../types').RiskItem[] = [
     consequence: 3,
     likelihood: 2,
     impact: 3,
-    riskScore: 4, // 3 + 2 - 1 = 4
+    riskScore: 4,
     level: 'MEDIUM',
     mitigation: '1. Enforce automatic 180-day calibration schedule\n2. Partner with SANAS accredited testing lab\n3. Daily zero-check verification against reference standard',
   },
@@ -455,7 +295,7 @@ export const initialRisks: import('../types').RiskItem[] = [
     consequence: 2,
     likelihood: 2,
     impact: 2,
-    riskScore: 3, // 2 + 2 - 1 = 3
+    riskScore: 3,
     level: 'LOW',
     mitigation: '1. Automated 7-day escalation notification to GM\n2. Weekly customer satisfaction review meetings\n3. Standardized RCA template in SHEQ portal',
   },
@@ -463,27 +303,27 @@ export const initialRisks: import('../types').RiskItem[] = [
 
 export const initialInstruments: CalibrationInstrument[] = [];
 
-export const initialOpportunities: import('../types').OpportunityItem[] = [
+export const initialOpportunities: OpportunityItem[] = [
   {
     id: 'opp-1',
     opportunityDescription: 'Implement AI inline optical sorting to upgrade recycled polymer purity to food-contact grade',
     focusArea: 'Recycle & Extrusion Process',
     process: 'Recycle & Extrusion Process',
-    potentialBenefit: 'Access 35% higher-margin food & beverage packaging contracts',
+    potentialBenefit: 'Access 35% higher-margin food & packaging contracts',
     consequence: 5,
     likelihood: 4,
     feasibility: 4,
     impact: 5,
-    score: 8, // 5 + 4 - 1 = 8
+    score: 8,
     priority: 'HIGH',
-    mitigation: '1. Partner with equipment vendor for pilot trial on line 2 in Q4\n2. Commission inline optical spectroscopy sensor\n3. Validate compliance with FDA food-contact threshold',
-    actionPlan: '1. Partner with equipment vendor for pilot trial on line 2 in Q4\n2. Commission inline optical spectroscopy sensor\n3. Validate compliance with FDA food-contact threshold',
+    mitigation: '1. Partner with equipment vendor for pilot trial\n2. Commission inline optical spectroscopy sensor\n3. Validate compliance with FDA food-contact threshold',
+    actionPlan: '1. Partner with equipment vendor for pilot trial\n2. Commission inline optical spectroscopy sensor\n3. Validate compliance with FDA food-contact threshold',
     owner: 'Operations Manager',
     targetDate: '30-Nov-2026',
   },
   {
     id: 'opp-2',
-    opportunityDescription: 'Pursue integrated ISO 14001:2015 & ISO 45001:2018 certification alongside ISO 9001',
+    opportunityDescription: 'Pursue integrated ISO 14001 & ISO 45001 certification alongside ISO 9001',
     focusArea: 'Integrated Management System',
     process: 'Integrated Management System',
     potentialBenefit: 'Qualify for premium multinational corporate ESG supply panels',
@@ -491,7 +331,7 @@ export const initialOpportunities: import('../types').OpportunityItem[] = [
     likelihood: 4,
     feasibility: 4,
     impact: 4,
-    score: 7, // 4 + 4 - 1 = 7 (as requested: 4+4=7)
+    score: 7,
     priority: 'HIGH',
     mitigation: '1. Conduct integrated environmental & safety gap analysis\n2. Align combined IMS procedures and audit checklists\n3. Schedule Stage-1 certification audit',
     actionPlan: '1. Conduct integrated environmental & safety gap analysis\n2. Align combined IMS procedures and audit checklists\n3. Schedule Stage-1 certification audit',
@@ -508,16 +348,16 @@ export const initialOpportunities: import('../types').OpportunityItem[] = [
     likelihood: 5,
     feasibility: 5,
     impact: 3,
-    score: 7, // 3 + 5 - 1 = 7
+    score: 7,
     priority: 'HIGH',
-    mitigation: '1. Roll out SHEQ Street mobile app with QR code scanning\n2. Conduct hands-on line operator training\n3. Automate instant non-conformance supervisor alerts',
-    actionPlan: '1. Roll out SHEQ Street mobile app with QR code scanning\n2. Conduct hands-on line operator training\n3. Automate instant non-conformance supervisor alerts',
+    mitigation: '1. Roll out mobile app with QR code scanning\n2. Conduct hands-on line operator training\n3. Automate instant non-conformance supervisor alerts',
+    actionPlan: '1. Roll out mobile app with QR code scanning\n2. Conduct hands-on line operator training\n3. Automate instant non-conformance supervisor alerts',
     owner: 'Quality Inspector',
     targetDate: '20-Oct-2026',
   },
 ];
 
-export const initialTeamMembers: import('../types').TeamMemberItem[] = [
+export const initialTeamMembers: TeamMemberItem[] = [
   {
     id: 'tm-1',
     name: 'NAVEEN .V',
@@ -529,4 +369,3 @@ export const initialTeamMembers: import('../types').TeamMemberItem[] = [
     isOwner: true,
   },
 ];
-

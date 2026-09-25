@@ -20,6 +20,8 @@ import {
   Trash2,
   Calendar,
   ChevronDown,
+  ChevronLeft,
+  Edit3,
   ArrowUpRight,
   Sparkles,
   Loader2,
@@ -105,34 +107,39 @@ export const ISO_9001_CLAUSES = [
   'Clause 10.3 - Continual improvement',
 ];
 
-// Initial 2 Procedures (matching screenshot badge 2)
+// Initial Procedure (matching screenshot PRO-001 Incident Reporting Procedure, badge 1)
 const initialProceduresList: ProcedureItem[] = [
   {
     id: 'proc-1',
-    docNumber: 'NK-SOP-001',
-    title: 'Control of Documented Information Procedure',
-    clause: 'Clause 7.5',
-    revision: 'Rev 3.2',
-    status: 'Approved',
-    owner: 'Naveen V (Lead Auditor)',
-    approvedDate: '15-Feb-2026',
-    nextReview: '15-Feb-2027',
-  },
-  {
-    id: 'proc-2',
-    docNumber: 'NK-SOP-002',
-    title: 'Non-Conformance, Root Cause & Corrective Action Procedure',
+    docNumber: 'PRO-001',
+    title: 'Incident Reporting Procedure',
     clause: 'Clause 10.2',
-    revision: 'Rev 2.1',
-    status: 'Approved',
-    owner: 'Quality Dept',
-    approvedDate: '01-Mar-2026',
-    nextReview: '01-Mar-2027',
+    revision: 'Rev 1',
+    status: 'Active',
+    owner: 'Naveen V (Lead Auditor)',
+    approvedDate: '18-Jul-2026',
+    revisionDate: '18-Jul-2026',
+    nextReview: '18-Jul-2027',
+    content: 'This procedure outlines the steps for reporting and recording incidents...',
   },
 ];
 
-// Initial 22 Controlled Documents (matching screenshot badge 22)
+// Initial 19 Controlled Documents (matching screenshot badge 19 with WI-001)
 const initialDocumentsList: DocumentItem[] = [
+  {
+    id: 'wi-001',
+    docNumber: 'WI-001',
+    title: 'Hazardous Waste Disposal Work Instruction',
+    category: 'Work Instruction',
+    revision: 'Rev 1',
+    status: 'Draft',
+    owner: 'Naveen V (Quality Lead)',
+    approvedDate: '17-Aug-2026',
+    revisionDate: '17-Aug-2026',
+    nextReview: '17-Aug-2027',
+    clause: 'Clause 8.5',
+    content: 'Step-by-step instructions for safe disposal of hazardous materials...',
+  },
   {
     id: '1',
     docNumber: 'NK-QM-001',
@@ -349,90 +356,6 @@ const initialDocumentsList: DocumentItem[] = [
     nextReview: '28-Jul-2027',
     clause: 'Clause 9.1.2',
   },
-  {
-    id: '19',
-    docNumber: 'NK-REG-001',
-    title: 'Legal & Statutory Regulatory Compliance Register',
-    category: 'Register',
-    revision: 'Rev 3.0',
-    status: 'Approved',
-    owner: 'Compliance Officer',
-    approvedDate: '08-Jan-2026',
-    nextReview: '08-Jan-2027',
-    clause: 'Clause 4.2',
-  },
-  {
-    id: '20',
-    docNumber: 'NK-REG-002',
-    title: 'Risk and Opportunity Assessment Matrix Register',
-    category: 'Register',
-    revision: 'Rev 2.5',
-    status: 'Approved',
-    owner: 'Risk Committee',
-    approvedDate: '16-Feb-2026',
-    nextReview: '16-Feb-2027',
-    clause: 'Clause 6.1',
-  },
-  {
-    id: '21',
-    docNumber: 'NK-REG-003',
-    title: 'Approved Suppliers & Critical Vendors Register',
-    category: 'Register',
-    revision: 'Rev 4.0',
-    status: 'Approved',
-    owner: 'Procurement Lead',
-    approvedDate: '02-Mar-2026',
-    nextReview: '02-Mar-2027',
-    clause: 'Clause 8.4',
-  },
-  {
-    id: '22',
-    docNumber: 'NK-REG-004',
-    title: 'Master Monitoring & Measuring Equipment Register',
-    category: 'Register',
-    revision: 'Rev 3.8',
-    status: 'Approved',
-    owner: 'Calibration Officer',
-    approvedDate: '20-Apr-2026',
-    nextReview: '20-Apr-2027',
-    clause: 'Clause 7.1.5',
-  },
-  {
-    id: '23',
-    docNumber: 'NK-REG-005',
-    title: 'Parties & Issues List',
-    category: 'Register',
-    revision: '1',
-    status: 'Under Review',
-    owner: 'SHEQ Lead',
-    approvedDate: '16-Sept-2026',
-    nextReview: '16-Sept-2027',
-    clause: 'Clause 4.1 & 4.2',
-  },
-  {
-    id: '24',
-    docNumber: 'NK-REG-006',
-    title: 'Risk Management Register',
-    category: 'Register',
-    revision: '1',
-    status: 'Draft',
-    owner: 'Risk Committee',
-    approvedDate: '16-Sept-2026',
-    nextReview: '16-Sept-2027',
-    clause: 'Clause 6.1',
-  },
-  {
-    id: '25',
-    docNumber: 'NK-POL-000',
-    title: 'Superseded Legacy Quality Policy (2020)',
-    category: 'Policy',
-    revision: 'Rev 1.0 (Archived)',
-    status: 'Obsolete',
-    owner: 'Quality Lead',
-    approvedDate: '10-Jan-2020',
-    nextReview: 'Archived',
-    clause: 'Clause 5.2',
-  },
 ];
 
 interface DocumentControlViewProps {
@@ -440,52 +363,142 @@ interface DocumentControlViewProps {
 }
 
 export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ company }) => {
-  // Navigation Sub-Tab: 'procedures' | 'documents' (matching pinned image, default 'documents')
-  const [activeSubTab, setActiveSubTab] = useState<'procedures' | 'documents'>('documents');
+  // Navigation Sub-Tab: 'procedures' | 'documents' (default 'procedures')
+  const [activeSubTab, setActiveSubTab] = useState<'procedures' | 'documents'>('procedures');
 
   // Procedures State
   const [procedures, setProcedures] = useState<ProcedureItem[]>(() => {
     try {
-      const savedScoped = localStorage.getItem(`sheq_${company?.id}_controlled_procedures`);
+      const savedScoped = localStorage.getItem(`sheq_${company?.id}_controlled_procedures_v6`);
       if (savedScoped) return JSON.parse(savedScoped);
-      const saved = localStorage.getItem('sheq_controlled_procedures');
+      const saved = localStorage.getItem('sheq_controlled_procedures_v6');
       if (saved) return JSON.parse(saved);
     } catch {}
     return initialProceduresList;
   });
 
-  // Documents State (Initial 24 documents matching screenshot)
+  // Selected Procedure for single procedure card view (appears only when user clicks View)
+  const [selectedProcedure, setSelectedProcedure] = useState<ProcedureItem | null>(null);
+
+  // Edit selected procedure modal
+  const [isEditSelectedProcModalOpen, setIsEditSelectedProcModalOpen] = useState(false);
+  const [editProcForm, setEditProcForm] = useState({
+    title: '',
+    revision: '',
+    status: '',
+    revisionDate: '',
+    content: '',
+  });
+
+  const handleOpenEditProcModal = (proc: ProcedureItem) => {
+    setEditProcForm({
+      title: proc.title,
+      revision: proc.revision,
+      status: proc.status || 'Active',
+      revisionDate: proc.revisionDate || proc.approvedDate || '18-Jul-2026',
+      content: proc.content || 'This procedure outlines the steps for reporting and recording incidents...',
+    });
+    setIsEditSelectedProcModalOpen(true);
+  };
+
+  const handleSaveEditProc = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProcedure) return;
+    const updated: ProcedureItem = {
+      ...selectedProcedure,
+      title: editProcForm.title.trim() || selectedProcedure.title,
+      revision: editProcForm.revision.trim() || selectedProcedure.revision,
+      status: editProcForm.status.trim() || selectedProcedure.status,
+      revisionDate: editProcForm.revisionDate.trim() || selectedProcedure.revisionDate,
+      content: editProcForm.content,
+    };
+    setSelectedProcedure(updated);
+    setProcedures((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    setIsEditSelectedProcModalOpen(false);
+    showNotice(`Procedure "${updated.docNumber} - ${updated.title}" updated successfully.`);
+  };
+
+  // Documents State (Initial 19 documents matching screenshot badge 19)
   const [documents, setDocuments] = useState<DocumentItem[]>(() => {
     try {
-      const savedScoped = localStorage.getItem(`sheq_${company?.id}_controlled_documents_v2`);
+      const savedScoped = localStorage.getItem(`sheq_${company?.id}_controlled_documents_v6`);
       if (savedScoped) return JSON.parse(savedScoped);
-      const saved = localStorage.getItem('sheq_controlled_documents_v2');
+      const saved = localStorage.getItem('sheq_controlled_documents_v6');
       if (saved) return JSON.parse(saved);
-      const legacy = localStorage.getItem('sheq_controlled_documents');
-      if (legacy) {
-        const parsed = JSON.parse(legacy);
-        if (parsed.length >= 24) return parsed;
-      }
     } catch {}
     return initialDocumentsList;
   });
 
+  // Selected Document for single document card view (appears only when user clicks View)
+  const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null);
+
+  // Edit selected document modal
+  const [isEditSelectedDocModalOpen, setIsEditSelectedDocModalOpen] = useState(false);
+  const [editDocForm, setEditDocForm] = useState({
+    title: '',
+    category: 'Work Instruction' as DocumentItem['category'],
+    revision: '',
+    status: '',
+    revisionDate: '',
+    content: '',
+  });
+
+  const handleOpenEditDocModal = (doc: DocumentItem) => {
+    setEditDocForm({
+      title: doc.title,
+      category: doc.category,
+      revision: doc.revision,
+      status: doc.status || 'Draft',
+      revisionDate: doc.revisionDate || doc.approvedDate || '17-Aug-2026',
+      content: doc.content || 'Step-by-step instructions for safe disposal of hazardous materials...',
+    });
+    setIsEditSelectedDocModalOpen(true);
+  };
+
+  const handleSaveEditDoc = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDoc) return;
+    const updated: DocumentItem = {
+      ...selectedDoc,
+      title: editDocForm.title.trim() || selectedDoc.title,
+      category: editDocForm.category || selectedDoc.category,
+      revision: editDocForm.revision.trim() || selectedDoc.revision,
+      status: editDocForm.status.trim() || selectedDoc.status,
+      revisionDate: editDocForm.revisionDate.trim() || selectedDoc.revisionDate,
+      content: editDocForm.content,
+    };
+    setSelectedDoc(updated);
+    setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+    setIsEditSelectedDocModalOpen(false);
+    showNotice(`Document "${updated.docNumber} - ${updated.title}" updated successfully.`);
+  };
+
+  // Company Code (e.g. "nk")
+  const compCode = company?.name
+    ? company.name
+        .split(' ')
+        .map((w) => w[0])
+        .join('')
+        .slice(0, 3)
+        .toLowerCase()
+    : 'nk';
+
   // Sync state on company change
   useEffect(() => {
     try {
-      const savedScopedProc = localStorage.getItem(`sheq_${company.id}_controlled_procedures`);
+      const savedScopedProc = localStorage.getItem(`sheq_${company.id}_controlled_procedures_v6`);
       if (savedScopedProc) {
         setProcedures(JSON.parse(savedScopedProc));
       } else {
-        const saved = localStorage.getItem('sheq_controlled_procedures');
+        const saved = localStorage.getItem('sheq_controlled_procedures_v6');
         setProcedures(saved ? JSON.parse(saved) : initialProceduresList);
       }
 
-      const savedScopedDoc = localStorage.getItem(`sheq_${company.id}_controlled_documents_v2`);
+      const savedScopedDoc = localStorage.getItem(`sheq_${company.id}_controlled_documents_v6`);
       if (savedScopedDoc) {
         setDocuments(JSON.parse(savedScopedDoc));
       } else {
-        const saved = localStorage.getItem('sheq_controlled_documents_v2');
+        const saved = localStorage.getItem('sheq_controlled_documents_v6');
         setDocuments(saved ? JSON.parse(saved) : initialDocumentsList);
       }
     } catch {}
@@ -494,18 +507,18 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
   // Persist to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('sheq_controlled_procedures', JSON.stringify(procedures));
+      localStorage.setItem('sheq_controlled_procedures_v6', JSON.stringify(procedures));
       if (company?.id) {
-        localStorage.setItem(`sheq_${company.id}_controlled_procedures`, JSON.stringify(procedures));
+        localStorage.setItem(`sheq_${company.id}_controlled_procedures_v6`, JSON.stringify(procedures));
       }
     } catch {}
   }, [procedures, company?.id]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('sheq_controlled_documents_v2', JSON.stringify(documents));
+      localStorage.setItem('sheq_controlled_documents_v6', JSON.stringify(documents));
       if (company?.id) {
-        localStorage.setItem(`sheq_${company.id}_controlled_documents_v2`, JSON.stringify(documents));
+        localStorage.setItem(`sheq_${company.id}_controlled_documents_v6`, JSON.stringify(documents));
       }
     } catch {}
   }, [documents, company?.id]);
@@ -904,21 +917,8 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
   };
 
   const handlePreviewProcedure = (proc: ProcedureItem) => {
-    setPreviewDoc({
-      id: proc.id,
-      docNumber: proc.docNumber,
-      title: proc.title,
-      category: 'SOP',
-      revision: proc.revision,
-      status: proc.status,
-      owner: proc.owner,
-      approvedDate: proc.approvedDate,
-      nextReview: proc.nextReview,
-      clause: proc.clause,
-      author: proc.owner,
-      approver: 'Managing Director / Top Management',
-      content: proc.content,
-    });
+    setSelectedProcedure(proc);
+    setActiveSubTab('procedures');
   };
 
   const handleDeleteDoc = (id: string) => {
@@ -927,6 +927,9 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
     if (window.confirm(`Are you sure you want to remove "${docToDelete.docNumber} - ${docToDelete.title}" from the register?`)) {
       setDocuments(documents.filter((d) => d.id !== id));
       showNotice(`Document "${docToDelete.docNumber}" removed from register.`);
+      if (selectedDoc?.id === id) {
+        setSelectedDoc(null);
+      }
       if (previewDoc?.id === id) {
         setPreviewDoc(null);
       }
@@ -956,89 +959,139 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-200">
       {/* Top Breadcrumb */}
-      <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
-        <span className="text-slate-700 font-semibold">{company?.name || 'Company'}</span>
-        <span className="px-1.5 py-0.5 rounded border border-amber-300/80 bg-amber-50 text-amber-700 text-[10px] font-bold tracking-wider">
+      <div className="flex items-center gap-2 text-xs font-medium mb-1">
+        <span className="text-slate-700 font-semibold">{compCode}</span>
+        <span className="px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-600 text-[10px] font-bold tracking-wider">
           {company?.plan || 'TRIAL'}
         </span>
-        {company?.isoScope && company.isoScope.length > 0 && (
-          <span className="hidden sm:inline-flex items-center gap-1.5">
-            <span className="text-slate-300">•</span>
-            {company.isoScope.map((scope) => (
-              <span
-                key={scope}
-                className="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200"
-              >
-                {scope}
-              </span>
-            ))}
-          </span>
-        )}
       </div>
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">{company?.name || 'Company'} — Document Control (ISO 9001:2015 Clause 7.5)</h1>
-        <p className="text-sm text-slate-500 mt-0.5">
-          Master Document Register, versioning, procedures, approvals, and controlled distribution.
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+          Document Control
+        </h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Manage all controlled procedures and documents with full revision tracking.
         </p>
       </div>
 
-      {/* Sub Tabs: Procedures (2) and Documents (22) matching Pinned Image */}
-      <div className="inline-flex items-center p-1 bg-slate-100/90 border border-slate-200/80 rounded-xl gap-1 shadow-2xs">
+      {/* Sub Tabs: Procedures (1) and Documents (19) matching Pinned Image */}
+      <div className="inline-flex items-center p-1 bg-slate-100 rounded-xl gap-1 shadow-2xs mt-4">
         <button
+          type="button"
           onClick={() => setActiveSubTab('procedures')}
           className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm transition-all cursor-pointer ${
             activeSubTab === 'procedures'
-              ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-semibold'
-              : 'text-slate-700 hover:text-slate-900 font-medium'
+              ? 'bg-white text-slate-900 shadow-xs font-semibold'
+              : 'text-slate-600 hover:text-slate-900 font-medium'
           }`}
         >
-          <FileText className={`w-4 h-4 ${activeSubTab === 'procedures' ? 'text-slate-900' : 'text-[#16325c]'}`} />
+          <FileText className={`w-4 h-4 ${activeSubTab === 'procedures' ? 'text-slate-900' : 'text-slate-600'}`} />
           <span>Procedures</span>
-          <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#16325c] text-white">
+          <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#122b49] text-white">
             {procedures.length}
           </span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveSubTab('documents')}
           className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm transition-all cursor-pointer ${
             activeSubTab === 'documents'
-              ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-semibold'
-              : 'text-slate-700 hover:text-slate-900 font-medium'
+              ? 'bg-white text-slate-900 shadow-xs font-semibold'
+              : 'text-slate-600 hover:text-slate-900 font-medium'
           }`}
         >
           <BookOpen className={`w-4 h-4 ${activeSubTab === 'documents' ? 'text-slate-900' : 'text-slate-600'}`} />
           <span>Documents</span>
-          <span
-            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-              activeSubTab === 'documents'
-                ? 'bg-slate-100 text-slate-600'
-                : 'bg-slate-200/80 text-slate-700'
-            }`}
-          >
+          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-200 text-slate-600">
             {documents.length}
           </span>
         </button>
       </div>
 
       {uploadSuccessMsg && (
-        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2 animate-in fade-in">
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2 animate-in fade-in no-print">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
           <span className="font-medium">{uploadSuccessMsg}</span>
         </div>
       )}
 
-      {/* VIEW A: PROCEDURES TAB (Count 2) */}
+      {/* VIEW A: PROCEDURES TAB */}
       {activeSubTab === 'procedures' && (
-        <div className="space-y-5 animate-in fade-in duration-150">
-          {/* Document Bar */}
-          <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-600 flex items-center gap-2 shadow-xs">
-            <FileText className="w-4 h-4 text-slate-400" />
-            <span className="font-semibold text-slate-500">DOCUMENT #:</span>
-            <span className="font-bold text-slate-900">{company?.name ? company.name.substring(0, 2).toUpperCase() : 'NK'}-DC-002</span>
-          </div>
+        <div className="space-y-4 animate-in fade-in duration-150">
+          {selectedProcedure ? (
+            <div>
+              {/* Back to Procedures Register Link */}
+              <button
+                type="button"
+                onClick={() => setSelectedProcedure(null)}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer mt-3 mb-4 transition-colors no-print"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Back to Procedures Register</span>
+              </button>
+
+              {/* Procedure Card Matching Pinned Image */}
+              <div
+                id="procedure-printable-card"
+                className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden"
+              >
+                {/* Navy Blue Header */}
+                <div className="bg-[#122b49] text-white px-7 py-6 sm:px-8 sm:py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="text-xs font-mono font-medium text-slate-300 uppercase tracking-wider mb-1">
+                      {selectedProcedure.docNumber}
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                      {selectedProcedure.title}
+                    </h2>
+                    <div className="text-xs text-slate-300 font-medium mt-1">
+                      {selectedProcedure.revision} · {selectedProcedure.revisionDate || selectedProcedure.approvedDate} · {selectedProcedure.status || 'Active'}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap no-print">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditProcModal(selectedProcedure)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-transparent hover:bg-white/10 text-white rounded-lg text-xs font-medium border border-white/30 transition-colors cursor-pointer"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadControlledDocumentPDF({ ...selectedProcedure, category: 'SOP' }, company)
+                      }
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-transparent hover:bg-white/10 text-white rounded-lg text-xs font-medium border border-white/30 transition-colors cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download PDF</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-7 sm:p-8">
+                  <div className="text-sm text-slate-800 font-normal leading-relaxed whitespace-pre-line">
+                    {selectedProcedure.content ||
+                      'This procedure outlines the steps for reporting and recording incidents...'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-5 animate-in fade-in duration-150">
+              {/* Document Bar */}
+              <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-600 flex items-center gap-2 shadow-xs">
+                <FileText className="w-4 h-4 text-slate-400" />
+                <span className="font-semibold text-slate-500">DOCUMENT #:</span>
+                <span className="font-bold text-slate-900">{company?.name ? company.name.substring(0, 2).toUpperCase() : 'NK'}-DC-002</span>
+              </div>
 
           {/* Procedures Metric Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1185,10 +1238,18 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
                     filteredProcedures.map((proc, idx) => (
                       <tr key={proc.id} className="hover:bg-slate-50/60 transition-colors">
                         <td className="py-3 px-4 font-semibold text-slate-500 text-xs">{idx + 1}</td>
-                        <td className="py-3 px-4 font-mono font-bold text-blue-700 text-xs">
+                        <td
+                          className="py-3 px-4 font-mono font-bold text-blue-700 text-xs cursor-pointer hover:underline"
+                          onClick={() => handlePreviewProcedure(proc)}
+                        >
                           {proc.docNumber}
                         </td>
-                        <td className="py-3 px-4 font-medium text-slate-900">{proc.title}</td>
+                        <td
+                          className="py-3 px-4 font-medium text-slate-900 cursor-pointer hover:text-blue-700"
+                          onClick={() => handlePreviewProcedure(proc)}
+                        >
+                          {proc.title}
+                        </td>
                         <td className="py-3 px-4 text-xs font-mono text-slate-600">{proc.clause}</td>
                         <td className="py-3 px-4 text-xs font-mono font-semibold text-slate-700 text-center">
                           {proc.revision}
@@ -1301,18 +1362,86 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
             </div>
           </div>
         </div>
+          )}
+        </div>
       )}
 
-      {/* VIEW B: DOCUMENTS TAB (Count 22 matching screenshot) */}
+      {/* VIEW B: DOCUMENTS TAB (Count 19 matching screenshot) */}
       {activeSubTab === 'documents' && (
-        <div className="space-y-5 animate-in fade-in duration-150">
-          {/* Summary Stat Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
-                <BookOpen className="w-5 h-5" />
+        <div className="space-y-4 animate-in fade-in duration-150">
+          {selectedDoc ? (
+            <div>
+              {/* Back to Documents Link */}
+              <button
+                type="button"
+                onClick={() => setSelectedDoc(null)}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer mt-3 mb-4 transition-colors no-print"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Back to Documents</span>
+              </button>
+
+              {/* Document Card Matching Pinned Image */}
+              <div
+                id="document-printable-card"
+                className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden"
+              >
+                {/* Navy Blue Header */}
+                <div className="bg-[#122b49] text-white px-7 py-6 sm:px-8 sm:py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="text-xs font-mono font-medium text-slate-300 uppercase tracking-wider mb-1">
+                      {selectedDoc.docNumber} · {(selectedDoc.category || 'WORK INSTRUCTION').toUpperCase()}
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                      {selectedDoc.title}
+                    </h2>
+                    <div className="text-xs text-slate-300 font-medium mt-1">
+                      {selectedDoc.revision} · {selectedDoc.revisionDate || selectedDoc.approvedDate} · {selectedDoc.status || 'Draft'}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap no-print">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditDocModal(selectedDoc)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-transparent hover:bg-white/10 text-white rounded-lg text-xs font-medium border border-white/30 transition-colors cursor-pointer"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        downloadControlledDocumentPDF(selectedDoc, company);
+                        showNotice(`📥 Downloading "${selectedDoc.docNumber}" as PDF...`);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-transparent hover:bg-white/10 text-white rounded-lg text-xs font-medium border border-white/30 transition-colors cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download PDF</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-7 sm:p-8">
+                  <div className="text-sm text-slate-800 font-normal leading-relaxed whitespace-pre-line">
+                    {selectedDoc.content ||
+                      'Step-by-step instructions for safe disposal of hazardous materials...'}
+                  </div>
+                </div>
               </div>
-              <div>
+            </div>
+          ) : (
+            <div className="space-y-5 animate-in fade-in duration-150">
+              {/* Summary Stat Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex items-center gap-4">
+                  <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <div>
                 <div className="text-2xl font-extrabold text-slate-900">{documents.length}</div>
                 <div className="text-xs font-medium text-slate-500">Master Controlled Documents</div>
               </div>
@@ -1442,13 +1571,16 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
                     filteredDocs.map((doc, idx) => (
                       <tr key={doc.id} className="hover:bg-slate-50/60 transition-colors">
                         <td className="py-3 px-4 font-semibold text-slate-500 text-xs">{idx + 1}</td>
-                        <td className="py-3 px-4 font-mono font-bold text-slate-900 text-xs">
+                        <td
+                          className="py-3 px-4 font-mono font-bold text-blue-700 text-xs cursor-pointer hover:underline"
+                          onClick={() => setSelectedDoc(doc)}
+                        >
                           {doc.docNumber}
                         </td>
                         <td className="py-3 px-4">
                           <button
                             type="button"
-                            onClick={() => setPreviewDoc(doc)}
+                            onClick={() => setSelectedDoc(doc)}
                             className="text-left font-medium text-slate-900 hover:text-blue-700 inline-flex items-center gap-1.5 group cursor-pointer transition-colors"
                           >
                             <span>{doc.title}</span>
@@ -1486,7 +1618,7 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
                           <div className="flex items-center justify-end gap-1.5 dropdown-action-container">
                             <button
                               type="button"
-                              onClick={() => setPreviewDoc(doc)}
+                              onClick={() => setSelectedDoc(doc)}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-lg text-xs font-semibold border border-slate-200 transition-colors cursor-pointer"
                               title="View / Preview Document"
                             >
@@ -1588,6 +1720,8 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
               </table>
             </div>
           </div>
+        </div>
+          )}
         </div>
       )}
 
@@ -2380,6 +2514,228 @@ export const DocumentControlView: React.FC<DocumentControlViewProps> = ({ compan
                   className="px-5 py-2 bg-[#1b3557] hover:bg-[#142842] text-white rounded-lg text-sm font-semibold shadow-xs transition-colors cursor-pointer"
                 >
                   Create Procedure
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit Selected Procedure */}
+      {isEditSelectedProcModalOpen && selectedProcedure && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto no-print"
+          onClick={() => setIsEditSelectedProcModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h2 className="font-bold text-base text-slate-900">
+                Edit Procedure ({selectedProcedure.docNumber})
+              </h2>
+              <button
+                onClick={() => setIsEditSelectedProcModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditProc} className="space-y-3.5 pt-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Procedure Title</label>
+                <input
+                  type="text"
+                  required
+                  value={editProcForm.title}
+                  onChange={(e) => setEditProcForm((prev) => ({ ...prev, title: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Revision</label>
+                  <input
+                    type="text"
+                    value={editProcForm.revision}
+                    onChange={(e) =>
+                      setEditProcForm((prev) => ({ ...prev, revision: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Status</label>
+                  <select
+                    value={editProcForm.status}
+                    onChange={(e) =>
+                      setEditProcForm((prev) => ({ ...prev, status: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Draft">Draft</option>
+                    <option value="Under Review">Under Review</option>
+                    <option value="Obsolete">Obsolete</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Revision Date</label>
+                  <input
+                    type="text"
+                    value={editProcForm.revisionDate}
+                    onChange={(e) =>
+                      setEditProcForm((prev) => ({ ...prev, revisionDate: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Procedure Content / Scope
+                </label>
+                <textarea
+                  rows={6}
+                  value={editProcForm.content}
+                  onChange={(e) =>
+                    setEditProcForm((prev) => ({ ...prev, content: e.target.value }))
+                  }
+                  className="w-full p-2.5 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono text-xs leading-relaxed"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsEditSelectedProcModalOpen(false)}
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow-xs cursor-pointer"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit Selected Document */}
+      {isEditSelectedDocModalOpen && selectedDoc && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto no-print"
+          onClick={() => setIsEditSelectedDocModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h2 className="font-bold text-base text-slate-900">
+                Edit Document ({selectedDoc.docNumber})
+              </h2>
+              <button
+                onClick={() => setIsEditSelectedDocModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditDoc} className="space-y-3.5 pt-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Document Title</label>
+                <input
+                  type="text"
+                  required
+                  value={editDocForm.title}
+                  onChange={(e) => setEditDocForm((prev) => ({ ...prev, title: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Revision</label>
+                  <input
+                    type="text"
+                    value={editDocForm.revision}
+                    onChange={(e) =>
+                      setEditDocForm((prev) => ({ ...prev, revision: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Status</label>
+                  <select
+                    value={editDocForm.status}
+                    onChange={(e) =>
+                      setEditDocForm((prev) => ({ ...prev, status: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900"
+                  >
+                    <option value="Draft">Draft</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Active">Active</option>
+                    <option value="Under Review">Under Review</option>
+                    <option value="Obsolete">Obsolete</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Revision Date</label>
+                  <input
+                    type="text"
+                    value={editDocForm.revisionDate}
+                    onChange={(e) =>
+                      setEditDocForm((prev) => ({ ...prev, revisionDate: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Document Content / Scope
+                </label>
+                <textarea
+                  rows={6}
+                  value={editDocForm.content}
+                  onChange={(e) =>
+                    setEditDocForm((prev) => ({ ...prev, content: e.target.value }))
+                  }
+                  className="w-full p-2.5 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono text-xs leading-relaxed text-slate-800"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsEditSelectedDocModalOpen(false)}
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow-xs cursor-pointer"
+                >
+                  Save Changes
                 </button>
               </div>
             </form>
